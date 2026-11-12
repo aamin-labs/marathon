@@ -1,0 +1,6 @@
+node_modules
+dist
+.DS_Store
+
+# Book page screenshots: source material, kept local only
+marathon-plans/breeze/

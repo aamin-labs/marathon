@@ -1,0 +1,191 @@
+# Breeze 80, 18-week version, from Marathon Excellence for Everyone (metric edition).
+# Entered from the weekly tables in breeze.md. Paste this whole file into Setup → Plan.
+#
+# How the book's tables were turned into single numbers:
+# - Where the book gives a range (6–10 km, 4–5 reps, "Off or 6–8 km"), one value was chosen so the
+#   week lands near the Breeze 80 goal mileage shown above each week. Change any of them to suit the day.
+# - "% 5k" paces need your current 5K time in Setup. A bare % is of marathon pace.
+# - Strides are written as 20 s fast, 40 s easy. The book gives only the 20 s; the 40 s is an assumption.
+# - "Walk/jog" recoveries are written as easy jogging.
+# The book's own tables, with their ranges, are in breeze.md next to this file.
+
+# Goal 55 km
+Week 1
+Mon: Workout "Progression run": 8k @progression, 1k @easy
+Tue: Easy "Easy run + strides": 7k, 4x(20s @strides, 40s @easy)
+Wed: Workout "5K-pace minutes": 2k @easy, 4x(20s @strides, 40s @easy), 10x(1.5min @100% 5k, 1min @walk), 1k @easy
+Thu: Easy 7k
+Fri: Easy "Easy to moderate": 7k
+Sat: Long "Long run, hills": 18k
+Sun: Rest
+
+# Goal 61 km
+Week 2
+Mon: Workout "Progression run": 8k @progression, 1k @easy
+Tue: Easy 7k
+Wed: Workout "Strong run": 2k @easy, 4x(20s @strides, 40s @easy), 7k @85% 5k, 1k @easy
+Thu: Easy 6k
+Fri: Easy "Easy run + strides": 8k, 4x(20s @strides, 40s @easy)
+Sat: Long "Long run, hills": 20k
+Sun: Rest
+
+# Goal 68 km
+Week 3
+Mon: Workout "Cruise intervals": 2k @easy, 4x(20s @strides, 40s @easy), 7x(3min @90% 5k, 45s @easy), 1k @easy
+Tue: Easy 12k
+Wed: Workout "5K-pace repeats": 2k @easy, 4x(20s @strides, 40s @easy), 8x(2min @100% 5k, 1.5min @walk), 1k @easy
+Thu: Easy 10k
+Fri: Easy 11k
+Sat: Long "Long fast run": 2k @easy, 4x(20s @strides, 40s @easy), 15k @70-75% 5k
+Sun: Rest
+
+# Goal 58 km (down week)
+Week 4
+Mon: Easy 8k
+Tue: Easy "Easy to moderate + strides": 10k, 4x(20s @strides, 40s @easy)
+Wed: Workout "Strong run": 2k @easy, 4x(20s @strides, 40s @easy), 8k @85% 5k
+Thu: Easy 8k
+Fri: Easy 10k
+Sat: Workout "Progression run": 10k @progression, 1k @easy
+Sun: Rest
+
+# Goal 68 km
+Week 5
+Mon: Workout "Cruise intervals": 2k @easy, 4x(20s @strides, 40s @easy), 8x(3min @90-92% 5k, 45s @easy), 2k @easy
+Tue: Easy 9k
+Wed: Workout "Mixed-pace repeats": 2k @easy, 4x(20s @strides, 40s @easy), 3x(3min @100% 5k, 1.5min @easy, 2min @102% 5k, 3min @easy), 2k @easy
+Thu: Easy 7k
+Fri: Easy "Easy to moderate": 9k
+Sat: Long "Long run, hills": 24k
+Sun: Rest
+
+# Goal 74 km
+Week 6
+Mon: Workout "500m repeats": 2k @easy, 4x(20s @strides, 40s @easy), 6x(500m @95% 5k, 30s @walk), 4min @walk, 6x(500m @95% 5k, 30s @walk), 2k @easy
+Tue: Easy 10k
+Wed: Workout "Strong run": 2k @easy, 4x(20s @strides, 40s @easy), 10k @85% 5k, 1k @easy
+Thu: Easy 10k
+Fri: Easy 12k
+Sat: Workout "Progression run": 12k @progression, 2k @easy
+Sun: Rest
+
+# Goal 80 km
+Week 7
+Mon: Workout "Cruise intervals": 2k @easy, 4x(20s @strides, 40s @easy), 5x(5min @90-92% 5k, 1min @easy), 2k @easy
+Tue: Easy 11k
+Wed: Workout "1 km repeats": 2k @easy, 4x(20s @strides, 40s @easy), 7x(1k @95% 5k, 2min @easy), 2k @easy
+Thu: Easy 10k
+Fri: Easy "Easy to moderate": 13k
+Sat: Long "Long fast run": 2k @easy, 4x(20s @strides, 40s @easy), 20k @75-80% 5k
+Sun: Rest
+
+# Goal 68 km (down week)
+Week 8
+Mon: Easy "Easy run + strides": 6k, 4x(20s @strides, 40s @easy)
+Tue: Workout "5K-pace pairs": 2k @easy, 4x(20s @strides, 40s @easy), 3x(3min @98% 5k, 1min @easy, 3min @100-102% 5k, 4min @easy), 2k @easy
+Wed: Easy 6k
+Thu: Easy 12k
+Fri: Easy "Easy to moderate": 8k
+Sat: Long "Long run, hills": 25k
+Sun: Rest
+
+# Goal 80 km
+Week 9
+Mon: Easy 12k
+Tue: Workout "Float recovery": 2k @easy, 4x(20s @strides, 40s @easy), 5x(1200m @90-92% 5k, 400m @75% 5k), 2k @easy
+Wed: Easy 12k
+Thu: Workout "Progression run": 10k @progression, 2k @easy
+Fri: Easy "Easy run + strides": 12k, 4x(20s @strides, 40s @easy)
+Sat: Workout "2 km repeats": 2k @easy, 4x(20s @strides, 40s @easy), 6x(2k @86-88% 5k, 2min @walk), 2k @easy
+Sun: Rest
+
+# Goal 80 km
+Week 10
+Mon: Easy "Easy run + strides": 8k, 4x(20s @strides, 40s @easy)
+Tue: Workout "1.5 km repeats": 2k @easy, 4x(20s @strides, 40s @easy), 4x(1.5k @95% 5k, 3min @easy), 2k @easy
+Wed: Easy 7k
+Thu: Workout "Strong run": 2k @easy, 4x(20s @strides, 40s @easy), 12k @85% 5k
+Fri: Easy 9k
+Sat: Long "Long run, hills": 29k
+Sun: Rest
+
+# Goal 80 km. Marathon-pace work starts: set your goal time in Setup before Saturday.
+Week 11
+Mon: Easy 9k
+Tue: Workout "Float recovery": 2k @easy, 4x(20s @strides, 40s @easy), 4x(1600m @90% 5k, 400m @75% 5k), 2k @easy
+Wed: Easy 8k
+Thu: Workout "Progression run": 10k @progression, 2k @easy
+Fri: Easy "Easy run + strides": 10k, 4x(20s @strides, 40s @easy)
+Sat: Long "Long fast run": 2k @easy, 4x(20s @strides, 40s @easy), 26k @90-92%
+Sun: Rest
+
+# Goal 68 km
+Week 12
+Mon: Easy 8k
+Tue: Easy "Easy to moderate": 10k
+Wed: Workout "2 km and 1 km repeats": 2k @easy, 4x(20s @strides, 40s @easy), 2k @108%, 3min @easy, 1k @112%, 4min @easy, 2k @108%, 3min @easy, 1k @112%, 2k @easy
+Thu: Easy 6k
+Fri: Easy "Easy to moderate": 9k
+Sat: Workout "Alternating kilometres": 2k @easy, 4x(20s @strides, 40s @easy), 10x(1k @100-102%, 1k @85%), 1k @easy
+Sun: Rest
+
+# Goal 80 km
+Week 13
+Mon: Easy 7k
+Tue: Easy "Easy to moderate + strides": 7k, 4x(20s @strides, 40s @easy)
+Wed: Workout "Alternating kilometres": 2k @easy, 4x(20s @strides, 40s @easy), 7x(1k @105%, 1k @80%), 2k @easy
+Thu: Easy 6k
+Fri: Easy 9k
+Sat: Long "Long fast run": 2k @easy, 4x(20s @strides, 40s @easy), 30k @90-92%
+Sun: Rest
+
+# Goal 80 km
+Week 14
+Mon: Easy "Easy run + strides": 8k, 4x(20s @strides, 40s @easy)
+Tue: Easy "Easy to moderate": 10k
+Wed: Workout "2 km repeats": 2k @easy, 4x(20s @strides, 40s @easy), 3x(2k @108%, 4min @easy), 1k @110-112%, 2k @easy
+Thu: Easy 8k
+Fri: Easy 10k
+Sat: Workout "Marathon-pace repeats": 2k @easy, 4x(20s @strides, 40s @easy), 7x(2k @MP, 1k @85%), 1k @easy
+Sun: Easy 6k
+
+# Goal 65–72 km
+Week 15
+Mon: Easy 8k
+Tue: Easy "Easy to moderate": 9k
+Wed: Workout "Fast continuous run": 2k @easy, 4x(20s @strides, 40s @easy), 7k @105%, 2k @easy
+Thu: Rest
+Fri: Easy "Easy run + strides": 6k, 4x(20s @strides, 40s @easy)
+Sat: Long "Step-wise long fast run": 2k @easy, 4x(20s @strides, 40s @easy), 10k @88%, 8k @90%, 8k @92%, 5k @95%
+Sun: Rest
+
+# Goal 65–72 km
+Week 16
+Mon: Easy 8k
+Tue: Easy 10k
+Wed: Workout "500m repeats": 2k @easy, 4x(20s @strides, 40s @easy), 11x(500m @108-110%, 40s @walk), 2k @easy
+Thu: Easy 9k
+Fri: Easy "Easy run + strides": 9k, 4x(20s @strides, 40s @easy)
+Sat: Workout "Race simulation": 2k @easy, 4x(20s @strides, 40s @easy), 5k @98-100%, 1k @65-75%, 4k @MP, 1k @easy, 3k @MP, 1k @easy, 2k @100-102%, 1k @easy, 1k @101-102%, 1k @easy
+Sun: Rest
+
+# Goal 65–72 km. Saturday is 3 reps; the book allows 4 if you want more marathon-pace practice.
+Week 17
+Mon: Easy 9k
+Tue: Easy 11k
+Wed: Workout "Alternating kilometres": 2k @easy, 4x(20s @strides, 40s @easy), 5x(1k @103%, 1k @85%), 2k @easy
+Thu: Easy 10k
+Fri: Easy "Easy run + strides": 10k, 4x(20s @strides, 40s @easy)
+Sat: Workout "Marathon-pace repeats": 2k @easy, 4x(20s @strides, 40s @easy), 3x(3k @MP, 2.5min @easy), 1k @easy
+Sun: Rest
+
+# Race week, no mileage goal. Easy runs sit toward the top of the book's ranges, as it recommends.
+# If the race is on a Saturday: drop Monday's run and move every other day one day earlier.
+Week 18
+Mon: Easy 10k
+Tue: Easy 9k
+Wed: Workout "Race-week tune-up": 2k @easy, 4x(20s @strides, 40s @easy), 5x(3min @105-107%, 1min @easy), 2k @easy
+Thu: Easy 6k
+Fri: Easy 8k
+Sat: Easy "Easy run + strides": 6k, 4x(20s @strides, 40s @easy)
+Sun: Easy "Race warm-up": 2k, 4x(20s @strides, 40s @easy) + Race 42.195k
