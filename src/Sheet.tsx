@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { DateField } from './Fields'
 import { fmtDate } from './lib/dates'
 import { fmtClock, fmtKm, parseClock, targetPaces, verdict } from './lib/pace'
 import { parseItem, type Step } from './lib/parse'
 import { plannedKm, useStore, type Lap, type Workout } from './lib/store'
+import { withUndo } from './lib/undo'
 import { fetchConditions } from './lib/weather'
 import { heatOf, Steps } from './Steps'
 
@@ -143,7 +145,8 @@ function Result({ w }: { w: Workout }) {
     )
   }
 
-  const save = () => {
+  const save = (e: React.FormEvent) => {
+    e.preventDefault()
     if (!isRun) return updateWorkout(w.id, { done: { km: 0, sec: 0, note: note || undefined } })
     const dist = Number(km)
     const sec = time.trim() ? parseClock(time) : 0
@@ -153,7 +156,7 @@ function Result({ w }: { w: Workout }) {
   }
 
   return (
-    <section className="sheet-section">
+    <form className="sheet-section" onSubmit={save}>
       <h3>Log it</h3>
       <div className="fields">
         {isRun && (
@@ -185,10 +188,8 @@ function Result({ w }: { w: Workout }) {
         </label>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
-      <button className="btn primary" onClick={save}>
-        Mark as done
-      </button>
-    </section>
+      <button className="btn primary">Mark as done</button>
+    </form>
   )
 }
 
@@ -197,6 +198,7 @@ function Edit({ w, onClose }: { w: Workout; onClose: () => void }) {
   const removeWorkout = useStore((s) => s.removeWorkout)
   const [src, setSrc] = useState(w.src)
   const [error, setError] = useState('')
+  const unchanged = src.trim() === w.src
 
   const save = () => {
     try {
@@ -215,23 +217,30 @@ function Edit({ w, onClose }: { w: Workout; onClose: () => void }) {
       <div className="fields">
         <label className="wide">
           Workout
-          <textarea rows={3} value={src} onChange={(e) => setSrc(e.target.value)} spellCheck={false} />
+          {/* Enter adds a line here, so saving from the keyboard is Cmd+Enter (Ctrl+Enter on Windows). */}
+          <textarea
+            rows={3}
+            value={src}
+            onChange={(e) => setSrc(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !unchanged && save()}
+            spellCheck={false}
+          />
         </label>
         <label>
           Day
-          <input type="date" value={w.date} onChange={(e) => e.target.value && updateWorkout(w.id, { date: e.target.value })} />
+          <DateField value={w.date} onSave={(date) => updateWorkout(w.id, { date })} />
         </label>
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="btn-row">
-        <button className="btn" onClick={save} disabled={src.trim() === w.src}>
+        <button className="btn" onClick={save} disabled={unchanged}>
           Save changes
         </button>
         <button
           className="btn danger"
           onClick={() => {
-            removeWorkout(w.id)
             onClose()
+            withUndo('Workout removed', () => removeWorkout(w.id))
           }}
         >
           Remove workout
@@ -245,38 +254,55 @@ export function Sheet({ id, onClose }: { id: string; onClose: () => void }) {
   const w = useStore((s) => s.workouts.find((x) => x.id === id))
   const settings = useStore((s) => s.settings)
 
+  const ref = useRef<HTMLDialogElement>(null)
+  const pressedBackdrop = useRef(false)
+
+  // showModal is what makes it a real modal: focus moves in and stays in, Escape closes it, the page behind can't be reached.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+    if (ref.current && !ref.current.open) ref.current.showModal()
+  }, [])
 
   if (!w) return null
 
+  // Closing through the dialog itself, not just unmounting it, is what sends focus back to the button that opened it.
+  // (Removing the workout skips this and unmounts directly: the chip that opened the sheet is gone too.)
+  const close = () => ref.current?.close()
+  // The backdrop belongs to the dialog element, so a click on it is a click on the dialog that lands outside its box.
+  const isOnBackdrop = (e: React.MouseEvent<HTMLDialogElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    return e.target === e.currentTarget && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)
+  }
+
   return (
-    <div className="scrim" onClick={onClose}>
-      <div className={`sheet k-${w.kind}`} role="dialog" aria-modal="true" aria-label={w.title} onClick={(e) => e.stopPropagation()}>
-        <header className="sheet-head">
-          <div>
-            <p className="muted">{fmtDate(w.date, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-            <h2>{w.title}</h2>
-          </div>
-          {w.kind !== 'strength' && (
-            <span className="big-num">
-              {fmtKm(plannedKm(w, settings))}
-              <small> km</small>
-            </span>
-          )}
-          <button className="btn close" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </header>
-        <Steps w={w} />
-        {w.kind !== 'strength' && !w.done && <Heat w={w} />}
-        {/* key resets the form when the workout's done state flips */}
-        <Result key={String(!!w.done)} w={w} />
-        <Edit key={w.src} w={w} onClose={onClose} />
-      </div>
-    </div>
+    <dialog
+      ref={ref}
+      className={`sheet k-${w.kind}`}
+      aria-label={w.title}
+      onClose={onClose}
+      // Only a press that both starts and ends on the backdrop closes it: dragging to select text in a field can end out there.
+      onMouseDown={(e) => (pressedBackdrop.current = isOnBackdrop(e))}
+      onClick={(e) => pressedBackdrop.current && isOnBackdrop(e) && close()}
+    >
+      <header className="sheet-head">
+        <div>
+          <p className="muted">{fmtDate(w.date, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <h2>{w.title}</h2>
+        </div>
+        {w.kind !== 'strength' && (
+          <span className="big-num">
+            {fmtKm(plannedKm(w, settings))}
+            <small> km</small>
+          </span>
+        )}
+        <button className="btn close" onClick={close} aria-label="Close">
+          ✕
+        </button>
+      </header>
+      <Steps w={w} />
+      {w.kind !== 'strength' && !w.done && <Heat w={w} />}
+      {/* key resets the form when the workout's done state flips */}
+      <Result key={String(!!w.done)} w={w} />
+      <Edit key={w.src} w={w} onClose={onClose} />
+    </dialog>
   )
 }

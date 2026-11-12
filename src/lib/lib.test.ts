@@ -1,10 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
-import { addDays, mondayOf, today } from './dates'
+import { addDays, fmtCountdown, isPlausibleDate, mondayOf, today } from './dates'
 import { fetchCompleted, icuDescription, matchRuns } from './intervals'
 import { fmtClock, heatSlowdown, mpPace, parseClock, targetPaces, verdict } from './pace'
+import { parseNumber } from './number'
 import { parseItem, parsePlan } from './parse'
 import { plannedKm, schedule, useStore } from './store'
 import { samplePlan } from './samplePlan'
+import { undo, useUndo, withUndo } from './undo'
 import breeze80 from '../../marathon-plans/breeze-80.txt?raw'
 
 const S = { goalTime: '3:30:00', easyLo: 70, easyHi: 80 }
@@ -182,5 +184,68 @@ describe('plan text', () => {
     expect(race.date).toBe('2027-03-14')
     const first = workouts.map((w) => w.date).sort()[0]
     expect(mondayOf(first)).toBe(addDays('2027-03-08', -17 * 7))
+  })
+})
+
+describe('fields', () => {
+  it('reads a number while it is still being typed', () => {
+    expect(parseNumber('25')).toBe(25)
+    expect(parseNumber('25.')).toBe(25)
+    expect(parseNumber('25.2')).toBe(25.2)
+    expect(parseNumber('-0.13')).toBe(-0.13)
+    expect(parseNumber('')).toBeNull()
+    expect(parseNumber('-')).toBeNull()
+    expect(parseNumber('abc')).toBeNull()
+    expect(parseNumber('1e3')).toBeNull()
+  })
+
+  it('rejects numbers outside the limits', () => {
+    expect(parseNumber('23', { min: 0, max: 23, integer: true })).toBe(23)
+    expect(parseNumber('24', { min: 0, max: 23, integer: true })).toBeNull()
+    expect(parseNumber('7.5', { min: 0, max: 23, integer: true })).toBeNull()
+    expect(parseNumber('0', { min: 1 })).toBeNull()
+  })
+
+  it('ignores the half-typed years a date field passes through', () => {
+    const now = '2026-11-13'
+    expect(isPlausibleDate('2027-03-14', now)).toBe(true)
+    expect(isPlausibleDate('0002-03-14', now)).toBe(false)
+    expect(isPlausibleDate('0202-03-14', now)).toBe(false)
+    expect(isPlausibleDate('2100-03-14', now)).toBe(false)
+    expect(isPlausibleDate('', now)).toBe(false)
+  })
+})
+
+describe('dates', () => {
+  it('counts down in weeks and days', () => {
+    expect(fmtCountdown(17)).toBe('2 weeks and 3 days')
+    expect(fmtCountdown(8)).toBe('1 week and 1 day')
+    expect(fmtCountdown(14)).toBe('2 weeks')
+    expect(fmtCountdown(5)).toBe('5 days')
+    expect(fmtCountdown(1)).toBe('1 day')
+  })
+})
+
+describe('undo', () => {
+  it('puts everything back as it was before the last change', () => {
+    const { workouts } = schedule('Week 1\nMon: Easy 8k\nTue: Easy 10k', '2027-03-14')
+    useStore.setState({ workouts })
+    withUndo('Workout removed', () => useStore.getState().removeWorkout(workouts[0].id))
+    expect(useStore.getState().workouts).toHaveLength(1)
+    expect(useUndo.getState().pending?.label).toBe('Workout removed')
+    undo()
+    expect(useStore.getState().workouts).toEqual(workouts)
+    expect(useUndo.getState().pending).toBeNull()
+  })
+
+  it('offers nothing when nothing changed, and withdraws the offer once something else does', () => {
+    withUndo('Workout removed', () => useStore.getState().removeWorkout('no such workout'))
+    expect(useUndo.getState().pending).toBeNull()
+
+    const { workouts } = useStore.getState()
+    withUndo('Workout removed', () => useStore.getState().removeWorkout(workouts[0].id))
+    expect(useUndo.getState().pending).not.toBeNull()
+    useStore.getState().setSettings({ raceName: 'Dubai' })
+    expect(useUndo.getState().pending).toBeNull()
   })
 })

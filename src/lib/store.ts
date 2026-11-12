@@ -40,7 +40,7 @@ export interface Routine {
   text: string
 }
 
-interface Data {
+export interface Data {
   settings: Settings
   planText: string
   workouts: Workout[]

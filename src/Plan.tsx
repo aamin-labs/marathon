@@ -7,18 +7,24 @@ import { plannedKm, useStore, type Workout } from './lib/store'
 import { SendButton } from './SendButton'
 
 function Chip({ w, km, maxKm, onOpen }: { w: Workout; km: number; maxKm: number; onOpen: () => void }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: w.id })
+  // dnd-kit's `attributes` are left off on purpose: they tell screen readers the chip can be dragged with the keyboard, which it can't.
+  // The keyboard way to move a workout is the Day field in its sheet.
+  const { listeners, setNodeRef, transform, isDragging } = useDraggable({ id: w.id })
   return (
     <button
       ref={setNodeRef}
       {...listeners}
-      {...attributes}
       className={`chip k-${w.kind}${w.done ? ' done' : ''}${isDragging ? ' dragging' : ''}`}
       style={transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined}
       onClick={onOpen}
     >
       <span className="chip-title">
-        {w.done && <span aria-label="Done">✓ </span>}
+        {w.done && (
+          <>
+            <span aria-hidden="true">✓ </span>
+            <span className="sr-only">Done: </span>
+          </>
+        )}
         {w.title}
       </span>
       {w.kind !== 'strength' && <span className="chip-km">{fmtKm(km)} km</span>}

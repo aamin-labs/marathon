@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { fmtKm } from './lib/pace'
 import { shoeKm, useStore } from './lib/store'
+import { withUndo } from './lib/undo'
 
 export function Shoes() {
   const shoes = useStore((s) => s.shoes)
@@ -59,7 +60,7 @@ export function Shoes() {
               </button>
               {/* Removing a pair that has runs logged would lose which shoe those runs used. */}
               {!used && (
-                <button className="btn danger" onClick={() => removeShoe(shoe.id)}>
+                <button className="btn danger" onClick={() => withUndo(`${shoe.name} removed`, () => removeShoe(shoe.id))}>
                   Remove
                 </button>
               )}

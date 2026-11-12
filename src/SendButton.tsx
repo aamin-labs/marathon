@@ -1,10 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { DAYS_AHEAD, fetchCompleted, removeSent, sendToIntervals } from './lib/intervals'
 
 /** Sends the coming runs to intervals.icu, fetches completed ones back, and reports what happened. `withRemove` adds the undo for sending. */
 export function SendButton({ withRemove = false }: { withRemove?: boolean }) {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null)
+  // Removing reaches into intervals.icu, where this app can't undo it, so it takes a second press.
+  const [confirming, setConfirming] = useState(false)
+  const askedAt = useRef(0)
+  const failed = msg != null && !msg.ok
+
+  // The second press has to come soon, or the button goes back to asking.
+  useEffect(() => {
+    if (!confirming) return
+    const timer = setTimeout(() => setConfirming(false), 5000)
+    return () => clearTimeout(timer)
+  }, [confirming])
 
   const run = async (action: () => Promise<string>) => {
     setBusy(true)
@@ -28,17 +39,28 @@ export function SendButton({ withRemove = false }: { withRemove?: boolean }) {
           Fetch completed runs
         </button>
         {withRemove && (
-          <button className="btn danger" onClick={() => run(removeSent)} disabled={busy}>
-            Remove sent runs
+          <button
+            className="btn danger"
+            onClick={() => {
+              if (!confirming) {
+                askedAt.current = Date.now()
+                return setConfirming(true)
+              }
+              // A double-click isn't a considered second press.
+              if (Date.now() - askedAt.current < 600) return
+              setConfirming(false)
+              run(removeSent)
+            }}
+            onBlur={() => setConfirming(false)}
+            disabled={busy}
+          >
+            {confirming ? 'Press again to remove' : 'Remove sent runs'}
           </button>
         )}
       </div>
-      {busy && <p className="muted">Working…</p>}
-      {msg && (
-        <p className={msg.ok ? 'muted' : 'error'} role={msg.ok ? 'status' : 'alert'}>
-          {msg.text}
-        </p>
-      )}
+      <p className={`send-status ${failed ? 'error' : 'muted'}`} role={failed ? 'alert' : 'status'}>
+        {busy ? 'Working…' : msg?.text}
+      </p>
     </div>
   )
 }

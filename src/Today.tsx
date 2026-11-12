@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
-import { addDays, daysBetween, fmtDate, mondayOf, today } from './lib/dates'
+import { addDays, daysBetween, fmtCountdown, fmtDate, mondayOf, today } from './lib/dates'
 import { fmtKm } from './lib/pace'
 import { plannedKm, useStore } from './lib/store'
 import { heatOf, Steps } from './Steps'
 
-export function Today({ onOpen }: { onOpen: (id: string) => void }) {
+export function Today({ onOpen, onSetup }: { onOpen: (id: string) => void; onSetup: () => void }) {
   const workouts = useStore((s) => s.workouts)
   const settings = useStore((s) => s.settings)
   const now = today()
@@ -29,17 +29,27 @@ export function Today({ onOpen }: { onOpen: (id: string) => void }) {
         <h1>{fmtDate(now, { weekday: 'long', day: 'numeric', month: 'long' })}</h1>
         <p className="muted">
           {toRace > 0
-            ? `${Math.floor(toRace / 7)} weeks and ${toRace % 7} days to ${settings.raceName}`
+            ? `${fmtCountdown(toRace)} to ${settings.raceName}`
             : toRace === 0
               ? `${settings.raceName} is today`
               : `${settings.raceName} is done`}
         </p>
       </header>
 
-      {todays.length === 0 && (
+      {workouts.length === 0 ? (
         <section className="card">
-          <h2>Rest day</h2>
+          <h2>No schedule yet</h2>
+          <p className="muted">Build one from your plan and today's workout will show up here.</p>
+          <button className="btn primary" onClick={onSetup}>
+            Go to Setup
+          </button>
         </section>
+      ) : (
+        todays.length === 0 && (
+          <section className="card">
+            <h2>Rest day</h2>
+          </section>
+        )
       )}
 
       {todays.map((w) => {

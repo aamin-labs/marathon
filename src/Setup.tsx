@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { DateField, NumberField } from './Fields'
 import { fiveKPace, fmtClock, mpPace, parseClock, targetPaces } from './lib/pace'
 import { parsePlan, type PlanError } from './lib/parse'
 import { exportData, useStore } from './lib/store'
+import { withUndo } from './lib/undo'
 import { SendButton } from './SendButton'
 
 export function Setup() {
@@ -19,14 +21,14 @@ export function Setup() {
   const [msg, setMsg] = useState('')
   const [backupMsg, setBackupMsg] = useState('')
   const [locMsg, setLocMsg] = useState('')
+  const fileInput = useRef<HTMLInputElement>(null)
 
   const goalOk = parseClock(settings.goalTime) != null
   const fiveKOk = !settings.fiveK?.trim() || parseClock(settings.fiveK) != null
   const easy = targetPaces({ t: 'easy' }, settings)!
-  const num = (v: string) => (v.trim() === '' || !Number.isFinite(Number(v)) ? null : Number(v))
 
   const build = () => {
-    const errs = applyPlan()
+    const errs = withUndo('Schedule rebuilt', applyPlan)
     setErrors(errs)
     setMsg(errs.length ? '' : `Schedule built: ${parsePlan(planText).weeks.length} weeks ending on race day.`)
   }
@@ -52,7 +54,7 @@ export function Setup() {
     try {
       const data = JSON.parse(await file.text())
       if (!data.settings || !Array.isArray(data.workouts)) throw new Error()
-      replaceAll(data)
+      withUndo('Backup restored', () => replaceAll(data))
       setBackupMsg('Backup restored.')
     } catch {
       setBackupMsg("That file isn't a backup from this app.")
@@ -74,7 +76,7 @@ export function Setup() {
           </label>
           <label>
             Race day
-            <input type="date" value={settings.raceDate} onChange={(e) => e.target.value && setSettings({ raceDate: e.target.value })} />
+            <DateField value={settings.raceDate} onSave={(raceDate) => setSettings({ raceDate })} />
           </label>
           <label>
             Goal time
@@ -86,11 +88,11 @@ export function Setup() {
           </label>
           <label>
             Easy from, % of marathon pace
-            <input inputMode="decimal" value={settings.easyLo} onChange={(e) => setSettings({ easyLo: num(e.target.value) ?? 0 })} />
+            <NumberField value={settings.easyLo} min={1} onSave={(n) => n != null && setSettings({ easyLo: n })} />
           </label>
           <label>
             Easy to, %
-            <input inputMode="decimal" value={settings.easyHi} onChange={(e) => setSettings({ easyHi: num(e.target.value) ?? 0 })} />
+            <NumberField value={settings.easyHi} min={1} onSave={(n) => n != null && setSettings({ easyHi: n })} />
           </label>
         </div>
         {goalOk ? (
@@ -122,10 +124,10 @@ export function Setup() {
           </ul>
         )}
         {msg && <p aria-live="polite">{msg}</p>}
+        <p className="muted">Building replaces every workout you haven't logged, including ones you moved. Logged workouts are kept.</p>
         <button className="btn primary" onClick={build}>
           Build schedule from this plan
         </button>
-        <p className="muted">This replaces every workout you haven't logged, including ones you moved. Logged workouts are kept.</p>
       </section>
 
       <section className="card">
@@ -162,15 +164,15 @@ export function Setup() {
         <div className="fields">
           <label>
             Latitude
-            <input inputMode="decimal" value={settings.lat ?? ''} onChange={(e) => setSettings({ lat: num(e.target.value) })} />
+            <NumberField value={settings.lat} min={-90} max={90} allowEmpty onSave={(lat) => setSettings({ lat })} />
           </label>
           <label>
             Longitude
-            <input inputMode="decimal" value={settings.lon ?? ''} onChange={(e) => setSettings({ lon: num(e.target.value) })} />
+            <NumberField value={settings.lon} min={-180} max={180} allowEmpty onSave={(lon) => setSettings({ lon })} />
           </label>
           <label>
             Usual run hour, 0–23
-            <input inputMode="numeric" value={settings.runHour} onChange={(e) => setSettings({ runHour: Math.min(23, Math.max(0, Math.round(num(e.target.value) ?? 0))) })} />
+            <NumberField value={settings.runHour} min={0} max={23} integer inputMode="numeric" onSave={(n) => n != null && setSettings({ runHour: n })} />
           </label>
           <button className="btn" onClick={locate}>
             Use my location
@@ -184,7 +186,7 @@ export function Setup() {
         <div className="fields">
           <label>
             Replace shoes at, km
-            <input inputMode="numeric" value={settings.retireKm} onChange={(e) => setSettings({ retireKm: num(e.target.value) ?? 0 })} />
+            <NumberField value={settings.retireKm} min={1} inputMode="numeric" onSave={(n) => n != null && setSettings({ retireKm: n })} />
           </label>
         </div>
       </section>
@@ -196,10 +198,20 @@ export function Setup() {
           <button className="btn" onClick={download}>
             Save a backup
           </button>
-          <label className="btn">
+          {/* A real button, so the keyboard can reach it; the hidden file input only does the picking. */}
+          <button className="btn" onClick={() => fileInput.current?.click()}>
             Restore a backup
-            <input type="file" accept="application/json" hidden onChange={(e) => restore(e.target.files?.[0])} />
-          </label>
+          </button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="application/json"
+            hidden
+            onChange={(e) => {
+              restore(e.target.files?.[0])
+              e.target.value = '' // so picking the same file again still counts as a change
+            }}
+          />
         </div>
         {backupMsg && <p aria-live="polite">{backupMsg}</p>}
       </section>

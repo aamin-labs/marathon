@@ -30,3 +30,20 @@ export function daysBetween(a: string, b: string): number {
 export function fmtDate(s: string, opts: Intl.DateTimeFormatOptions): string {
   return fromIso(s).toLocaleDateString('en-GB', opts)
 }
+
+/**
+ * A date field reports years like 0002 and 0202 while "2027" is being typed. Only act on a finished one:
+ * a date within five years of today, which also keeps a slip of the finger from stretching the calendar across decades.
+ */
+export function isPlausibleDate(s: string, now = today()): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) && Math.abs(daysBetween(now, s)) <= 5 * 366
+}
+
+/** 17 → "2 weeks and 3 days". */
+export function fmtCountdown(days: number): string {
+  const count = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'}`
+  const weeks = Math.floor(days / 7)
+  const rest = days % 7
+  if (weeks === 0) return count(rest, 'day')
+  return rest === 0 ? count(weeks, 'week') : `${count(weeks, 'week')} and ${count(rest, 'day')}`
+}
