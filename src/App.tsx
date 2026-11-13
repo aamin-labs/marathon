@@ -21,6 +21,10 @@ function UndoToast() {
   // The countdown waits while the pointer or keyboard focus is on the message, so it can't vanish as you reach for it.
   const [held, setHeld] = useState(false)
   if (!pending && held) setHeld(false)
+  // Keeps the last message on screen while it plays its exit, after the offer itself is gone.
+  const [shown, setShown] = useState(pending)
+  if (pending && pending !== shown) setShown(pending)
+  const leaving = !pending
 
   useEffect(() => {
     if (!pending || held) return
@@ -31,9 +35,17 @@ function UndoToast() {
   // The status region is always on the page and only its contents come and go: screen readers announce changes inside a region they already know.
   return (
     <div role="status">
-      {pending && (
-        <div className="toast" onMouseEnter={() => setHeld(true)} onMouseLeave={() => setHeld(false)} onFocus={() => setHeld(true)} onBlur={() => setHeld(false)}>
-          <span>{pending.label}</span>
+      {shown && (
+        <div
+          className={`toast${leaving ? ' leaving' : ''}`}
+          inert={leaving}
+          onAnimationEnd={() => leaving && setShown(null)}
+          onMouseEnter={() => setHeld(true)}
+          onMouseLeave={() => setHeld(false)}
+          onFocus={() => setHeld(true)}
+          onBlur={() => setHeld(false)}
+        >
+          <span>{shown.label}</span>
           <button
             className="btn"
             onClick={() => {

@@ -95,7 +95,8 @@ function Laps({ w }: { w: Workout }) {
   )
 }
 
-function Result({ w }: { w: Workout }) {
+/** `fresh` is true when the workout was logged a moment ago in this sheet, as opposed to opened already done. */
+function Result({ w, fresh, onLogged }: { w: Workout; fresh: boolean; onLogged: () => void }) {
   const settings = useStore((s) => s.settings)
   const shoes = useStore((s) => s.shoes)
   const workouts = useStore((s) => s.workouts)
@@ -117,7 +118,7 @@ function Result({ w }: { w: Workout }) {
       <section className="sheet-section">
         <h3>Done</h3>
         {isRun && (
-          <p className="result">
+          <p className={`result${fresh ? ' fresh' : ''}`}>
             <span className="big-num">{fmtKm(w.done.km)}<small> km</small></span>
             {w.done.sec > 0 && <span className="big-num">{fmtClock(w.done.sec)}</span>}
             {pace && <span className="big-num">{fmtClock(pace)}<small> /km</small></span>}
@@ -153,6 +154,7 @@ function Result({ w }: { w: Workout }) {
     if (!Number.isFinite(dist) || dist <= 0) return setError('Enter the distance in km, like 10.2.')
     if (sec == null) return setError('Enter the time as 52:30 or 1:45:00.')
     updateWorkout(w.id, { done: { km: dist, sec, shoeId: shoeId || undefined, note: note || undefined } })
+    onLogged()
   }
 
   return (
@@ -256,6 +258,7 @@ export function Sheet({ id, onClose }: { id: string; onClose: () => void }) {
 
   const ref = useRef<HTMLDialogElement>(null)
   const pressedBackdrop = useRef(false)
+  const [logged, setLogged] = useState(false)
 
   // showModal is what makes it a real modal: focus moves in and stays in, Escape closes it, the page behind can't be reached.
   useEffect(() => {
@@ -266,7 +269,14 @@ export function Sheet({ id, onClose }: { id: string; onClose: () => void }) {
 
   // Closing through the dialog itself, not just unmounting it, is what sends focus back to the button that opened it.
   // (Removing the workout skips this and unmounts directly: the chip that opened the sheet is gone too.)
-  const close = () => ref.current?.close()
+  // It first plays its exit (see [data-closing] in the stylesheet), then closes for real.
+  const close = () => {
+    const dialog = ref.current
+    if (!dialog) return
+    if ('closing' in dialog.dataset || matchMedia('(prefers-reduced-motion: reduce)').matches) return dialog.close()
+    dialog.dataset.closing = ''
+    dialog.addEventListener('animationend', (e) => e.target === dialog && dialog.close())
+  }
   // The backdrop belongs to the dialog element, so a click on it is a click on the dialog that lands outside its box.
   const isOnBackdrop = (e: React.MouseEvent<HTMLDialogElement>) => {
     const r = e.currentTarget.getBoundingClientRect()
@@ -279,6 +289,11 @@ export function Sheet({ id, onClose }: { id: string; onClose: () => void }) {
       className={`sheet k-${w.kind}`}
       aria-label={w.title}
       onClose={onClose}
+      // Escape would close it on the spot; send it through the same exit as the close button.
+      onCancel={(e) => {
+        e.preventDefault()
+        close()
+      }}
       // Only a press that both starts and ends on the backdrop closes it: dragging to select text in a field can end out there.
       onMouseDown={(e) => (pressedBackdrop.current = isOnBackdrop(e))}
       onClick={(e) => pressedBackdrop.current && isOnBackdrop(e) && close()}
@@ -301,7 +316,7 @@ export function Sheet({ id, onClose }: { id: string; onClose: () => void }) {
       <Steps w={w} />
       {w.kind !== 'strength' && !w.done && <Heat w={w} />}
       {/* key resets the form when the workout's done state flips */}
-      <Result key={String(!!w.done)} w={w} />
+      <Result key={String(!!w.done)} w={w} fresh={logged} onLogged={() => setLogged(true)} />
       <Edit key={w.src} w={w} onClose={onClose} />
     </dialog>
   )

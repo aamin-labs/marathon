@@ -1,5 +1,5 @@
 import { DndContext, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { addDays, fmtDate, mondayOf, today } from './lib/dates'
 import { fmtKm } from './lib/pace'
 import { parseItem } from './lib/parse'
@@ -14,8 +14,10 @@ function Chip({ w, km, maxKm, onOpen }: { w: Workout; km: number; maxKm: number;
     <button
       ref={setNodeRef}
       {...listeners}
+      data-workout={w.id}
       className={`chip k-${w.kind}${w.done ? ' done' : ''}${isDragging ? ' dragging' : ''}`}
-      style={transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined}
+      // `translate`, not `transform`: the lift in the stylesheet uses `scale`, and a scale would stretch a transform's offset, pulling the chip away from the pointer.
+      style={transform ? { translate: `${transform.x}px ${transform.y}px` } : undefined}
       onClick={onOpen}
     >
       <span className="chip-title">
@@ -76,9 +78,30 @@ export function Plan({ onOpen }: { onOpen: (id: string) => void }) {
 
   useEffect(() => thisWeek.current?.scrollIntoView({ block: 'start' }), [])
 
+  // Where a chip was let go. On release it is drawn in its day at once, so without this it would jump there from under the pointer.
+  const [released, setReleased] = useState<{ id: string; left: number; top: number } | null>(null)
+
   const onDragEnd = (e: DragEndEvent) => {
+    const at = e.active.rect.current.translated
+    if (at) setReleased({ id: String(e.active.id), left: at.left, top: at.top })
     if (e.over) updateWorkout(String(e.active.id), { date: String(e.over.id) })
   }
+
+  // Glide the chip from where it was let go into its place: start it offset back to the release point, then let the offset run out.
+  // A layout effect runs after the chip is in its new place but before the screen is painted, so the jump is never seen.
+  useLayoutEffect(() => {
+    if (!released) return
+    const chip = document.querySelector<HTMLElement>(`[data-workout="${released.id}"]`)
+    if (!chip || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const home = chip.getBoundingClientRect()
+    chip.animate(
+      [
+        { translate: `${released.left - home.left}px ${released.top - home.top}px`, scale: 1.03, zIndex: 20 },
+        { translate: '0 0', scale: 1, zIndex: 20 },
+      ],
+      { duration: 200, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' },
+    )
+  }, [released])
 
   return (
     <>

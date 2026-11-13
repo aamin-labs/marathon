@@ -49,7 +49,7 @@ export function Shoes() {
               </span>
             </div>
             <div className={`meter${km >= retireKm ? ' full' : ''}`} role="img" aria-label={`${fmtKm(km)} of ${retireKm} km`}>
-              <i style={{ width: `${Math.min(100, (km / retireKm) * 100)}%` }} />
+              <i style={{ transform: `translateX(${Math.min(100, (km / retireKm) * 100) - 100}%)` }} />
             </div>
             <p className="muted">
               {shoe.retired ? 'Retired' : km >= retireKm ? `Past ${retireKm} km: time to replace them` : `${fmtKm(retireKm - km)} km until ${retireKm} km`}

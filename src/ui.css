@@ -15,6 +15,8 @@
   --danger: #b3261e;
   --display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
   --body: 'Barlow', system-ui, sans-serif;
+  /* The curve for anything arriving on screen: quick off the mark, soft landing. */
+  --ease-out: cubic-bezier(0.32, 0.72, 0, 1);
   color-scheme: light dark;
 }
 
@@ -174,7 +176,8 @@ textarea { resize: vertical; line-height: 1.5; }
 input[aria-invalid='true'] { border-color: var(--danger); }
 
 .meter { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
-.meter i { display: block; height: 100%; background: var(--ink); border-radius: 4px; }
+/* The fill is full width and slid into place: moving it is cheaper to animate than resizing it, and its rounded end keeps its shape. */
+.meter i { display: block; height: 100%; background: var(--ink); border-radius: 4px; transition: transform 300ms ease-in-out; }
 .meter.full i { background: var(--danger); }
 
 /* Workout steps */
@@ -216,6 +219,7 @@ input[aria-invalid='true'] { border-color: var(--danger); }
 .week-km { margin-left: auto; font: 700 1.5rem/1 var(--display); font-variant-numeric: tabular-nums; }
 
 .day { display: grid; grid-template-columns: 3.25rem minmax(0, 1fr) 2.75rem; gap: 0.5rem; align-items: start; padding: 0.375rem 0; border-top: 1px solid var(--line); }
+.day { transition: background-color 120ms ease; }
 .day.over { background: color-mix(in srgb, var(--ink) 8%, transparent); }
 .day-label { padding-top: 0.75rem; font-size: 0.875rem; color: var(--muted); white-space: nowrap; }
 .day-label b { color: var(--ink); font-weight: 600; }
@@ -245,10 +249,13 @@ input[aria-invalid='true'] { border-color: var(--danger); }
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  /* `scale` is its own property, so it can ease on its own while `translate` follows the pointer. */
+  transition: scale 150ms ease-out, box-shadow 150ms ease;
 }
 .chip.done { background-color: color-mix(in srgb, var(--k) 16%, var(--surface)); }
 .chip.done .chip-km { color: var(--ink); }
-.chip.dragging { z-index: 20; cursor: grabbing; box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); overflow: visible; }
+/* Picked up: it lifts slightly, which on a phone is the sign that the press-and-hold registered. */
+.chip.dragging { z-index: 20; cursor: grabbing; scale: 1.03; box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); overflow: visible; }
 .chip-km { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; font-size: 0.875rem; }
 .chip-bar { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--k); opacity: 0.55; }
 
@@ -291,13 +298,21 @@ input[aria-invalid='true'] { border-color: var(--danger); }
   color: var(--ink);
   border-radius: 18px 18px 0 0;
   padding: 0 1rem calc(1.25rem + env(safe-area-inset-bottom));
-  animation: rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* A sheet coming up from the bottom edge travels further than a dialog appearing mid-screen. */
+  --rise: 48px;
+  animation: rise 250ms var(--ease-out);
 }
 .sheet[open] { display: grid; gap: 1rem; }
-.sheet::backdrop { background: rgb(0 0 0 / 0.45); animation: fade 220ms ease-out; }
-@keyframes rise { from { transform: translateY(24px); opacity: 0; } }
+/* Same duration and curve as the sheet: the two arrive as one thing. */
+.sheet::backdrop { background: rgb(0 0 0 / 0.45); animation: fade 250ms var(--ease-out); }
+/* Leaving is quicker and quieter than arriving. */
+.sheet[data-closing] { animation: sink 160ms ease-in forwards; }
+.sheet[data-closing]::backdrop { animation: fade-out 160ms ease-in forwards; }
+@keyframes rise { from { transform: translateY(var(--rise, 24px)); opacity: 0; } }
+@keyframes sink { to { transform: translateY(12px); opacity: 0; } }
 @keyframes fade { from { opacity: 0; } }
-@media (min-width: 900px) { .sheet { inset: 0; margin: auto; border-radius: 18px; } }
+@keyframes fade-out { to { opacity: 0; } }
+@media (min-width: 900px) { .sheet { --rise: 24px; inset: 0; margin: auto; border-radius: 18px; } }
 
 /* Sticky, so the close button is always in reach. Its top strip is the kind stripe. */
 .sheet-head {
@@ -317,6 +332,10 @@ details.sheet-section:not([open]) { display: block; }
 details.sheet-section { padding-top: 0.25rem; }
 summary { cursor: pointer; font-weight: 600; padding: 0.6875rem 0; }
 .result { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; }
+/* Only right after logging a run: the numbers arrive one after another. Opening an already-logged workout shows them at rest. */
+.result.fresh > * { --rise: 8px; animation: rise 240ms var(--ease-out) backwards; }
+.result.fresh > :nth-child(2) { animation-delay: 50ms; }
+.result.fresh > :nth-child(3) { animation-delay: 100ms; }
 
 /* Undo message. Layers, low to high: tabs 10, a dragged chip 20, this 25. The sheet needs none: a modal dialog is always on top. */
 .toast {
@@ -335,14 +354,19 @@ summary { cursor: pointer; font-weight: 600; padding: 0.6875rem 0; }
   background: var(--ink);
   color: var(--bg);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
-  animation: rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --rise: 12px;
+  animation: rise 220ms var(--ease-out);
 }
+.toast.leaving { animation: sink 160ms ease-in forwards; }
 .toast .btn { background: none; border-color: transparent; color: inherit; font-weight: 600; }
 .toast :focus-visible { outline-color: var(--bg); outline-offset: -2px; }
 @media (min-width: 900px) { .toast { bottom: 1.5rem; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .sheet, .sheet::backdrop, .toast { animation: none; }
-  .btn { transition: none; }
+  .sheet, .sheet::backdrop, .toast, .result.fresh > * { animation: none; }
+  /* With no exit animation to wait for, a leaving message just goes. */
+  .toast.leaving { display: none; }
+  .btn, .chip, .day, .meter i { transition: none; }
+  .chip.dragging { scale: none; }
   .btn:active { transform: none; }
 }

@@ -77,7 +77,7 @@ export function Today({ onOpen, onSetup }: { onOpen: (id: string) => void; onSet
       <section className="plain">
         <h2>This week</h2>
         <div className="meter" role="img" aria-label={`${fmtKm(weekDone)} of ${fmtKm(weekPlanned)} km done`}>
-          <i style={{ width: `${weekPlanned ? Math.min(100, (weekDone / weekPlanned) * 100) : 0}%` }} />
+          <i style={{ transform: `translateX(${(weekPlanned ? Math.min(100, (weekDone / weekPlanned) * 100) : 0) - 100}%)` }} />
         </div>
         <p className="muted">
           {fmtKm(weekDone)} of {fmtKm(weekPlanned)} km done
