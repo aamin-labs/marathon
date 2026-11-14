@@ -1,9 +1,10 @@
 import { DndContext, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { Check, Plus } from 'lucide-react'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { addDays, fmtDate, mondayOf, today } from './lib/dates'
+import { fmtDate, today } from './lib/dates'
 import { fmtKm } from './lib/pace'
 import { parseItem } from './lib/parse'
+import { calendarWeeks } from './lib/plan'
 import { useStore, type Workout } from './lib/store'
 import { countedKm, isRun, workoutState } from './lib/workout'
 import { SendButton } from './SendButton'
@@ -67,12 +68,7 @@ export function Plan({ onOpen }: { onOpen: (id: string, edit?: boolean) => void 
 
   const { weeks, kms, maxKm } = useMemo(() => {
     const kms = new Map(workouts.map((w) => [w.id, countedKm(w, settings)]))
-    const dates = workouts.map((w) => w.date).sort()
-    const first = mondayOf(dates[0] ?? now)
-    const last = mondayOf(dates[dates.length - 1] ?? now)
-    const weeks: string[] = []
-    for (let d = first; d <= last; d = addDays(d, 7)) weeks.push(d)
-    return { weeks, kms, maxKm: Math.max(1, ...kms.values()) }
+    return { weeks: calendarWeeks(workouts, now, settings), kms, maxKm: Math.max(1, ...kms.values()) }
   }, [workouts, settings, now])
 
   // A layout effect, so the jump to this week happens before the first paint: a plain effect can show week 1 for a frame after a refresh.
@@ -111,31 +107,27 @@ export function Plan({ onOpen }: { onOpen: (id: string, edit?: boolean) => void 
         {hasKey && <SendButton />}
       </header>
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-        {weeks.map((start, wi) => {
-          const days = Array.from({ length: 7 }, (_, i) => addDays(start, i))
-          const inWeek = workouts.filter((w) => w.date >= start && w.date <= days[6])
-          const total = inWeek.reduce((sum, w) => sum + (kms.get(w.id) ?? 0), 0)
-          const current = now >= start && now <= days[6]
+        {weeks.map((week) => {
+          const sunday = week.days[6].date
+          const current = now >= week.monday && now <= sunday
           return (
-            <section key={start} ref={current && wi > 0 ? thisWeek : undefined} className={`week${days[6] < now ? ' past' : ''}`}>
+            <section key={week.monday} ref={current && week.number > 1 ? thisWeek : undefined} className={`week${sunday < now ? ' past' : ''}`}>
               <header className="week-head">
-                <h2>Week {wi + 1}</h2>
+                <h2>Week {week.number}</h2>
                 <span className="muted">
-                  {fmtDate(start, { day: 'numeric', month: 'short' })} to {fmtDate(days[6], { day: 'numeric', month: 'short' })}
+                  {fmtDate(week.monday, { day: 'numeric', month: 'short' })} to {fmtDate(sunday, { day: 'numeric', month: 'short' })}
                 </span>
                 <span className="week-km">
-                  {fmtKm(total)}
+                  {fmtKm(week.km)}
                   <small> km</small>
                 </span>
               </header>
               <div className="week-days">
-                {days.map((date) => (
-                  <Day key={date} date={date} isToday={date === now} onAdd={() => onOpen(addWorkout(date, parseItem('Easy 8k')!), true)}>
-                    {inWeek
-                      .filter((w) => w.date === date)
-                      .map((w) => (
-                        <Chip key={w.id} w={w} km={kms.get(w.id) ?? 0} maxKm={maxKm} onOpen={() => onOpen(w.id)} />
-                      ))}
+                {week.days.map((day) => (
+                  <Day key={day.date} date={day.date} isToday={day.date === now} onAdd={() => onOpen(addWorkout(day.date, parseItem('Easy 8k')!), true)}>
+                    {day.workouts.map((w) => (
+                      <Chip key={w.id} w={w} km={kms.get(w.id) ?? 0} maxKm={maxKm} onOpen={() => onOpen(w.id)} />
+                    ))}
                   </Day>
                 ))}
               </div>
