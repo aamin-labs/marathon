@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
+import { slowdown } from './lib/conditions'
 import { addDays, daysBetween, fmtCountdown, fmtDate, mondayOf, today } from './lib/dates'
 import { fmtKm } from './lib/pace'
 import { plannedKm, useStore } from './lib/store'
-import { heatOf, KindTag, Steps } from './Steps'
+import { KindTag, Steps } from './Steps'
 
 export function Today({ onOpen, onSetup }: { onOpen: (id: string) => void; onSetup: () => void }) {
   const workouts = useStore((s) => s.workouts)
@@ -54,7 +55,7 @@ export function Today({ onOpen, onSetup }: { onOpen: (id: string) => void; onSet
           )}
 
           {todays.map((w) => {
-            const heat = heatOf(w)
+            const heat = slowdown(w)
             return (
               <section key={w.id} className="card">
                 <div className="today-top">

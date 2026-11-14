@@ -1,5 +1,6 @@
+import { slowdown } from './conditions'
 import { addDays, today } from './dates'
-import { fmtClock, heatSlowdown, targetPaces, type PaceSettings } from './pace'
+import { fmtClock, targetPaces, type PaceSettings } from './pace'
 import type { Step } from './parse'
 import { plannedKm, useStore, type Lap, type Workout } from './store'
 
@@ -28,7 +29,7 @@ function icuStep(step: Step, s: PaceSettings, heatPct: number): string {
 
 /** The workout in intervals.icu's text format, with heat-adjusted paces when conditions are set. */
 export function icuDescription(w: Workout, s: PaceSettings): string {
-  const heat = w.heat ? heatSlowdown(w.heat.tempC, w.heat.dewC) : 0
+  const heat = slowdown(w)
   // Repeat blocks need a blank line either side.
   return w.blocks
     .map((b) => {

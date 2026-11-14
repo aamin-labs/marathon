@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { addDays, fmtCountdown, isPlausibleDate, mondayOf, today } from './dates'
 import { fetchCompleted, icuDescription, matchRuns } from './intervals'
-import { fmtClock, heatSlowdown, mpPace, parseClock, parseRunTime, targetPaces, verdict } from './pace'
+import { fmtClock, mpPace, parseClock, parseRunTime, targetPaces, verdict } from './pace'
 import { parseNumber } from './number'
 import { parseItem, parsePlan } from './parse'
 import { plannedKm, schedule, useStore } from './store'
@@ -32,9 +32,6 @@ describe('pace', () => {
   })
 
   it('slows paces in the heat', () => {
-    expect(heatSlowdown(10, 5)).toBe(0) // 50°F + 41°F = 91
-    expect(heatSlowdown(25, 18)).toBeCloseTo(3.21, 1) // 77 + 64.4 = 141.4
-    expect(heatSlowdown(38, 30)).toBe(10) // 100.4 + 86 = 186.4, past the end of the chart
     const cool = targetPaces({ t: 'easy' }, S)!
     const hot = targetPaces({ t: 'easy' }, S, 4)!
     expect(hot[0]).toBeCloseTo(cool[0] * 1.04)

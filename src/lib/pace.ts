@@ -63,26 +63,6 @@ export function targetPaces(target: Target, s: PaceSettings, heatPct = 0): [numb
   return [range[0] * k, range[1] * k]
 }
 
-// Temperature + dew point (both °F) → % to slow down. The widely used chart from coach Mark Hadley.
-const HEAT_TABLE: [number, number][] = [
-  [100, 0], [110, 0.5], [120, 1], [130, 2], [140, 3], [150, 4.5], [160, 6], [170, 8], [180, 10],
-]
-
-/** Percent to slow paces for the given conditions (°C). */
-export function heatSlowdown(tempC: number, dewC: number): number {
-  const f = (c: number) => (c * 9) / 5 + 32
-  const sum = f(tempC) + f(dewC)
-  if (sum <= HEAT_TABLE[0][0]) return 0
-  for (let i = 1; i < HEAT_TABLE.length; i++) {
-    const [x1, y1] = HEAT_TABLE[i]
-    if (sum <= x1) {
-      const [x0, y0] = HEAT_TABLE[i - 1]
-      return y0 + ((sum - x0) / (x1 - x0)) * (y1 - y0)
-    }
-  }
-  return 10
-}
-
 /** How an actual average pace compares with a target range. */
 export function verdict(actual: number, [fast, slow]: [number, number]): string {
   if (actual < fast - 2) return `${Math.round(fast - actual)} s/km faster than the target range`
