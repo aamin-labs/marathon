@@ -2,7 +2,7 @@ import { addDays, today } from './dates'
 import { fmtClock, type PaceSettings } from './pace'
 import { stepsWithPaces, type StepWithPaces } from './paces'
 import { useStore, type Lap, type Workout } from './store'
-import { defaultShoeId, hasSeveralSteps, isStillToRun, plannedKm } from './workout'
+import { hasSeveralSteps, isStillToRun, plannedKm } from './workout'
 
 // Sends planned runs to the intervals.icu calendar. From there the Intervals Companion
 // iPhone app passes them to the Apple Watch. Completed runs are read back from the same place.
@@ -156,7 +156,7 @@ async function fetchLaps(key: string, activityId: string): Promise<Lap[] | undef
 
 /** Log runs recorded in intervals.icu against the planned workouts on the same days. Returns a message for the user. */
 export async function fetchCompleted(): Promise<string> {
-  const { icuKey, workouts, settings, shoes, updateWorkout } = useStore.getState()
+  const { icuKey, workouts, settings, markDoneWithResult } = useStore.getState()
   if (!icuKey.trim()) throw new Error('Add your intervals.icu API key in Setup first.')
   const key = icuKey.trim()
   const to = today()
@@ -171,20 +171,15 @@ export async function fetchCompleted(): Promise<string> {
   const runs = all.filter((a) => /run/i.test(a.type ?? '') && (a.distance ?? 0) > 0)
   const fromStrava = all.filter((a) => a.source === 'STRAVA' && !a.distance).length
 
-  // Same default as ticking Done by hand.
-  const shoeId = defaultShoeId(workouts, shoes)
-
   const matched = matchRuns(open.map((w) => ({ id: w.id, date: w.date, km: plannedKm(w, settings) })), runs)
   for (const [id, acts] of matched) {
     const w = open.find((x) => x.id === id)!
     // Laps only matter for sessions with more than one step, and come from the main recording.
-    updateWorkout(id, {
-      done: {
-        km: Math.round(acts.reduce((sum, a) => sum + (a.distance ?? 0), 0) / 10) / 100,
-        sec: acts.reduce((sum, a) => sum + (a.moving_time ?? 0), 0),
-        shoeId,
-        laps: hasSeveralSteps(w) ? await fetchLaps(key, acts[0].id) : undefined,
-      },
+    markDoneWithResult(id, {
+      // intervals.icu counts in metres; a recorded result is in km. Rounded while still in metres, where a distance ending in 5 m is an exact half and always goes up.
+      km: Math.round(acts.reduce((sum, a) => sum + (a.distance ?? 0), 0) / 10) / 100,
+      sec: acts.reduce((sum, a) => sum + (a.moving_time ?? 0), 0),
+      laps: hasSeveralSteps(w) ? await fetchLaps(key, acts[0].id) : undefined,
     })
   }
 
