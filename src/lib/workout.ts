@@ -1,4 +1,5 @@
-import { targetPaces, type PaceSettings } from './pace'
+import type { PaceSettings } from './pace'
+import { stepsWithPaces, trainingPaces } from './paces'
 import type { Item } from './parse'
 import type { Shoe, Workout } from './store'
 
@@ -19,12 +20,13 @@ export const isStillToRun = (w: Workout): boolean => isRun(w) && workoutState(w)
 /** Planned distance; timed steps are estimated at the middle of their target pace. */
 export function plannedKm(w: Item, s: PaceSettings): number {
   let km = 0
-  for (const b of w.blocks)
+  // Only the steps are handed over, without the workout's conditions, so the total does not move with the weather.
+  for (const b of stepsWithPaces({ blocks: w.blocks }, s))
     for (const step of b.steps) {
       if (step.km != null) km += b.reps * step.km
       else if (step.sec != null) {
         if (step.target.t === 'none' && step.target.label === 'Walk') continue // walking isn't running distance
-        const [fast, slow] = targetPaces(step.target, s) ?? targetPaces({ t: 'easy' }, s)!
+        const [fast, slow] = step.paces ?? trainingPaces(s).easy
         km += (b.reps * step.sec) / ((fast + slow) / 2)
       }
     }
