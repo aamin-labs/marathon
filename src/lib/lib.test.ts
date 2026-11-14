@@ -4,10 +4,11 @@ import { fetchCompleted, icuDescription, matchRuns } from './intervals'
 import { fmtClock, heatSlowdown, mpPace, parseClock, parseRunTime, targetPaces, verdict } from './pace'
 import { parseNumber } from './number'
 import { parseItem, parsePlan } from './parse'
-import { plannedKm, schedule, useStore } from './store'
+import { schedule, useStore } from './store'
 import { samplePlan } from './samplePlan'
 import { undo, useUndo, withUndo } from './undo'
 import { canForecast } from './weather'
+import { plannedKm } from './workout'
 import breeze80 from '../../marathon-plans/breeze-80.txt?raw'
 
 const S = { goalTime: '3:30:00', easyLo: 70, easyHi: 80 }

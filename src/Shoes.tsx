@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { parseNumber } from './lib/number'
 import { fmtKm } from './lib/pace'
-import { shoeKm, useStore } from './lib/store'
+import { useStore } from './lib/store'
 import { withUndo } from './lib/undo'
+import { hasBeenWorn, shoeKm } from './lib/workout'
 
 export function Shoes() {
   const shoes = useStore((s) => s.shoes)
@@ -41,7 +42,7 @@ export function Shoes() {
 
         {sorted.map((shoe) => {
           const km = shoeKm(shoe, workouts)
-          const used = workouts.some((w) => w.done?.shoeId === shoe.id)
+          const used = hasBeenWorn(shoe, workouts)
           return (
             <section key={shoe.id} className={`card shoe${shoe.retired ? ' retired' : ''}`}>
               <div className="today-top">

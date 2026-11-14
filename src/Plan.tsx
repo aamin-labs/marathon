@@ -4,31 +4,33 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { addDays, fmtDate, mondayOf, today } from './lib/dates'
 import { fmtKm } from './lib/pace'
 import { parseItem } from './lib/parse'
-import { plannedKm, useStore, type Workout } from './lib/store'
+import { useStore, type Workout } from './lib/store'
+import { countedKm, isRun, workoutState } from './lib/workout'
 import { SendButton } from './SendButton'
 
 function Chip({ w, km, maxKm, onOpen }: { w: Workout; km: number; maxKm: number; onOpen: () => void }) {
   // dnd-kit's `attributes` are left off on purpose: they tell screen readers the chip can be dragged with the keyboard, which it can't.
   // The keyboard way to move a workout is the Day field in its sheet.
   const { listeners, setNodeRef, transform, isDragging } = useDraggable({ id: w.id })
+  const done = workoutState(w) === 'done'
   return (
     <button
       ref={setNodeRef}
       {...listeners}
       data-workout={w.id}
-      className={`chip k-${w.kind}${w.done ? ' done' : ''}${isDragging ? ' dragging' : ''}`}
+      className={`chip k-${w.kind}${done ? ' done' : ''}${isDragging ? ' dragging' : ''}`}
       // `translate`, not `transform`: the lift in the stylesheet uses `scale`, and a scale would stretch a transform's offset, pulling the chip away from the pointer.
       style={transform ? { translate: `${transform.x}px ${transform.y}px` } : undefined}
       onClick={onOpen}
     >
       <span className="chip-title">
-        {w.done ? <Check className="chip-mark" size={13} strokeWidth={2.5} aria-hidden="true" /> : <span className="chip-mark dot" />}
-        {w.done && <span className="sr-only">Done: </span>}
+        {done ? <Check className="chip-mark" size={13} strokeWidth={2.5} aria-hidden="true" /> : <span className="chip-mark dot" />}
+        {done && <span className="sr-only">Done: </span>}
         {w.title}
       </span>
-      {w.kind !== 'strength' && <span className="chip-km">{fmtKm(km)} km</span>}
+      {isRun(w) && <span className="chip-km">{fmtKm(km)} km</span>}
       {/* Bar length is the run's distance relative to the longest run in the plan. */}
-      {w.kind !== 'strength' && <i className="chip-bar" style={{ width: `${(km / maxKm) * 100}%` }} />}
+      {isRun(w) && <i className="chip-bar" style={{ width: `${(km / maxKm) * 100}%` }} />}
     </button>
   )
 }
@@ -64,7 +66,7 @@ export function Plan({ onOpen }: { onOpen: (id: string, edit?: boolean) => void 
   )
 
   const { weeks, kms, maxKm } = useMemo(() => {
-    const kms = new Map(workouts.map((w) => [w.id, w.done?.km ?? plannedKm(w, settings)]))
+    const kms = new Map(workouts.map((w) => [w.id, countedKm(w, settings)]))
     const dates = workouts.map((w) => w.date).sort()
     const first = mondayOf(dates[0] ?? now)
     const last = mondayOf(dates[dates.length - 1] ?? now)

@@ -1,7 +1,8 @@
 import { addDays, today } from './dates'
 import { fmtClock, heatSlowdown, targetPaces, type PaceSettings } from './pace'
 import type { Step } from './parse'
-import { plannedKm, useStore, type Lap, type Workout } from './store'
+import { useStore, type Lap, type Workout } from './store'
+import { defaultShoeId, hasSeveralSteps, isStillToRun, plannedKm } from './workout'
 
 // Sends planned runs to the intervals.icu calendar. From there the Intervals Companion
 // iPhone app passes them to the Apple Watch. Completed runs are read back from the same place.
@@ -63,7 +64,7 @@ export async function sendToIntervals(): Promise<string> {
   const to = addDays(from, DAYS_AHEAD - 1)
 
   // Upcoming runs, plus any sent before that have since moved outside the window, so their date updates too.
-  const runs = workouts.filter((w) => w.kind !== 'strength' && !w.done && ((w.date >= from && w.date <= to) || w.id in pushed))
+  const runs = workouts.filter((w) => isStillToRun(w) && ((w.date >= from && w.date <= to) || w.id in pushed))
   const next: Record<string, number> = {}
 
   if (runs.length) {
@@ -163,7 +164,7 @@ export async function fetchCompleted(): Promise<string> {
   const to = today()
   const from = addDays(to, -(DAYS_BACK - 1))
 
-  const open = workouts.filter((w) => w.kind !== 'strength' && !w.done && w.date >= from && w.date <= to)
+  const open = workouts.filter((w) => isStillToRun(w) && w.date >= from && w.date <= to)
   if (!open.length) return `Nothing to fetch: every run planned in the last ${DAYS_BACK} days is already logged.`
 
   const res = await call(key, `/activities?oldest=${from}&newest=${to}T23:59:59`)
@@ -172,21 +173,19 @@ export async function fetchCompleted(): Promise<string> {
   const runs = all.filter((a) => /run/i.test(a.type ?? '') && (a.distance ?? 0) > 0)
   const fromStrava = all.filter((a) => a.source === 'STRAVA' && !a.distance).length
 
-  // Same default as the log form: the pair worn on the most recent logged run.
-  const lastShoe = [...workouts].filter((w) => w.done?.shoeId).sort((a, b) => b.date.localeCompare(a.date))[0]?.done?.shoeId
-  const shoeId = shoes.some((s) => s.id === lastShoe && !s.retired) ? lastShoe : undefined
+  // Same default as ticking Done by hand.
+  const shoeId = defaultShoeId(workouts, shoes)
 
   const matched = matchRuns(open.map((w) => ({ id: w.id, date: w.date, km: plannedKm(w, settings) })), runs)
   for (const [id, acts] of matched) {
     const w = open.find((x) => x.id === id)!
     // Laps only matter for sessions with more than one step, and come from the main recording.
-    const structured = w.blocks.length > 1 || w.blocks.some((b) => b.reps > 1)
     updateWorkout(id, {
       done: {
         km: Math.round(acts.reduce((sum, a) => sum + (a.distance ?? 0), 0) / 10) / 100,
         sec: acts.reduce((sum, a) => sum + (a.moving_time ?? 0), 0),
         shoeId,
-        laps: structured ? await fetchLaps(key, acts[0].id) : undefined,
+        laps: hasSeveralSteps(w) ? await fetchLaps(key, acts[0].id) : undefined,
       },
     })
   }
