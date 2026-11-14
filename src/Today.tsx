@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
 import { slowdown } from './lib/conditions'
-import { addDays, daysBetween, fmtCountdown, fmtDate, mondayOf, today } from './lib/dates'
+import { daysBetween, fmtCountdown, fmtDate, today } from './lib/dates'
 import { fmtKm } from './lib/pace'
+import { currentWeekKm } from './lib/plan'
 import { useStore } from './lib/store'
 import { countedKm, isRun, workoutState } from './lib/workout'
 import { KindTag, Steps } from './Steps'
@@ -13,13 +14,12 @@ export function Today({ onOpen, onSetup }: { onOpen: (id: string) => void; onSet
 
   const { todays, next, weekPlanned, weekDone } = useMemo(() => {
     const sorted = [...workouts].sort((a, b) => a.date.localeCompare(b.date))
-    const start = mondayOf(now)
-    const week = sorted.filter((w) => w.date >= start && w.date <= addDays(start, 6))
+    const week = currentWeekKm(workouts, now, settings)
     return {
       todays: sorted.filter((w) => w.date === now),
       next: sorted.filter((w) => w.date > now && workoutState(w) !== 'done').slice(0, 3),
-      weekPlanned: week.reduce((sum, w) => sum + countedKm(w, settings), 0),
-      weekDone: week.filter((w) => workoutState(w) === 'done').reduce((sum, w) => sum + countedKm(w, settings), 0),
+      weekPlanned: week.headingFor,
+      weekDone: week.done,
     }
   }, [workouts, settings, now])
 

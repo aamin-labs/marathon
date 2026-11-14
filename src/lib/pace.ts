@@ -1,7 +1,3 @@
-import type { Target } from './parse'
-
-export const MARATHON_KM = 42.195
-
 /** "3:30:00" or "4:45" → seconds. */
 export function parseClock(s: string): number | null {
   if (!s.trim()) return null
@@ -34,33 +30,6 @@ export interface PaceSettings {
   fiveK?: string
   easyLo: number
   easyHi: number
-}
-
-/** Marathon pace in seconds per km. */
-export function mpPace(goalTime: string): number {
-  return (parseClock(goalTime) ?? 12600) / MARATHON_KM
-}
-
-/** 5K pace in seconds per km. With no 5K time set, assume marathon speed is 81% of 5K speed, the plan book's default conversion. */
-export function fiveKPace(s: PaceSettings): number {
-  const t = parseClock(s.fiveK ?? '')
-  return t ? t / 5 : mpPace(s.goalTime) * 0.81
-}
-
-// Percentages are of *speed*, so 105% MP is faster than marathon pace.
-const pctToPace = (base: number, pct: number) => base / (pct / 100)
-
-/** [fastest, slowest] pace in sec/km, or null when the step is run by feel. */
-export function targetPaces(target: Target, s: PaceSettings, heatPct = 0): [number, number] | null {
-  const mp = mpPace(s.goalTime)
-  let range: [number, number]
-  if (target.t === 'easy') range = [pctToPace(mp, s.easyHi), pctToPace(mp, s.easyLo)]
-  else if (target.t === 'mp') range = [pctToPace(mp, target.hi), pctToPace(mp, target.lo)]
-  else if (target.t === '5k') range = [pctToPace(fiveKPace(s), target.hi), pctToPace(fiveKPace(s), target.lo)]
-  else if (target.t === 'pace') range = [target.lo, target.hi]
-  else return null
-  const k = 1 + heatPct / 100
-  return [range[0] * k, range[1] * k]
 }
 
 /** How an actual average pace compares with a target range. */

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { DateField, NumberField } from './Fields'
-import { fiveKPace, fmtClock, mpPace, parseClock, targetPaces } from './lib/pace'
+import { fmtClock, parseClock } from './lib/pace'
+import { trainingPaces } from './lib/paces'
 import type { PlanError } from './lib/plan'
 import { exportData, useStore } from './lib/store'
 import { withUndo } from './lib/undo'
@@ -25,7 +26,7 @@ export function Setup() {
 
   const goalOk = parseClock(settings.goalTime) != null
   const fiveKOk = !settings.fiveK?.trim() || parseClock(settings.fiveK) != null
-  const easy = targetPaces({ t: 'easy' }, settings)!
+  const paces = trainingPaces(settings)
 
   const build = () => {
     const laid = withUndo('Schedule rebuilt', applyPlan)
@@ -98,8 +99,8 @@ export function Setup() {
         </div>
         {goalOk ? (
           <p className="muted">
-            Marathon pace {fmtClock(mpPace(settings.goalTime))}&nbsp;/km. Easy runs {fmtClock(easy[0])}–{fmtClock(easy[1])}&nbsp;/km. 5K pace {fmtClock(fiveKPace(settings))}&nbsp;/km
-            {settings.fiveK?.trim() ? '.' : ', estimated from the goal time until you enter a 5K time.'}
+            Marathon pace {fmtClock(paces.marathon)}&nbsp;/km. Easy runs {fmtClock(paces.easy[0])}–{fmtClock(paces.easy[1])}&nbsp;/km. 5K pace {fmtClock(paces.fiveK)}&nbsp;/km
+            {paces.fiveKEstimated ? ', estimated from the goal time until you enter a 5K time.' : '.'}
           </p>
         ) : (
           <p className="error">Enter the goal time as 3:30:00.</p>

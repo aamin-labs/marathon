@@ -1,9 +1,8 @@
-import { slowdown } from './conditions'
 import { addDays, today } from './dates'
-import { fmtClock, targetPaces, type PaceSettings } from './pace'
-import type { Step } from './parse'
+import { fmtClock, type PaceSettings } from './pace'
+import { stepsWithPaces, type StepWithPaces } from './paces'
 import { useStore, type Lap, type Workout } from './store'
-import { defaultShoeId, hasSeveralSteps, isStillToRun, plannedKm } from './workout'
+import { hasSeveralSteps, isStillToRun, plannedKm } from './workout'
 
 // Sends planned runs to the intervals.icu calendar. From there the Intervals Companion
 // iPhone app passes them to the Apple Watch. Completed runs are read back from the same place.
@@ -14,7 +13,7 @@ export const DAYS_AHEAD = 7
 export const DAYS_BACK = 28
 
 // intervals.icu reads "m" as minutes, so metres must be written "mtr".
-function icuStep(step: Step, s: PaceSettings, heatPct: number): string {
+function icuStep(step: StepWithPaces): string {
   let size: string
   if (step.km != null) size = step.km < 1 ? `${Math.round(step.km * 1000)}mtr` : `${step.km}km`
   else {
@@ -22,19 +21,17 @@ function icuStep(step: Step, s: PaceSettings, heatPct: number): string {
     size = `${sec >= 60 ? `${Math.floor(sec / 60)}m` : ''}${sec % 60 ? `${sec % 60}s` : ''}`
   }
   // Paces go out as absolute min/km: intervals.icu's own percentages are of threshold pace, not marathon pace.
-  const paces = targetPaces(step.target, s, heatPct)
-  if (!paces) return `- ${size}`
-  const [fast, slow] = paces.map((p) => `${fmtClock(p)}/km`)
+  if (!step.paces) return `- ${size}`
+  const [fast, slow] = step.paces.map((p) => `${fmtClock(p)}/km`)
   return `- ${size} ${fast === slow ? fast : `${fast}-${slow}`} Pace`
 }
 
 /** The workout in intervals.icu's text format, with heat-adjusted paces when conditions are set. */
 export function icuDescription(w: Workout, s: PaceSettings): string {
-  const heat = slowdown(w)
   // Repeat blocks need a blank line either side.
-  return w.blocks
+  return stepsWithPaces(w, s)
     .map((b) => {
-      const steps = b.steps.map((step) => icuStep(step, s, heat)).join('\n')
+      const steps = b.steps.map(icuStep).join('\n')
       return b.reps > 1 ? `\n${b.reps}x\n${steps}\n` : steps
     })
     .join('\n')
@@ -159,7 +156,7 @@ async function fetchLaps(key: string, activityId: string): Promise<Lap[] | undef
 
 /** Log runs recorded in intervals.icu against the planned workouts on the same days. Returns a message for the user. */
 export async function fetchCompleted(): Promise<string> {
-  const { icuKey, workouts, settings, shoes, updateWorkout } = useStore.getState()
+  const { icuKey, workouts, settings, markDoneWithResult } = useStore.getState()
   if (!icuKey.trim()) throw new Error('Add your intervals.icu API key in Setup first.')
   const key = icuKey.trim()
   const to = today()
@@ -174,20 +171,15 @@ export async function fetchCompleted(): Promise<string> {
   const runs = all.filter((a) => /run/i.test(a.type ?? '') && (a.distance ?? 0) > 0)
   const fromStrava = all.filter((a) => a.source === 'STRAVA' && !a.distance).length
 
-  // Same default as ticking Done by hand.
-  const shoeId = defaultShoeId(workouts, shoes)
-
   const matched = matchRuns(open.map((w) => ({ id: w.id, date: w.date, km: plannedKm(w, settings) })), runs)
   for (const [id, acts] of matched) {
     const w = open.find((x) => x.id === id)!
     // Laps only matter for sessions with more than one step, and come from the main recording.
-    updateWorkout(id, {
-      done: {
-        km: Math.round(acts.reduce((sum, a) => sum + (a.distance ?? 0), 0) / 10) / 100,
-        sec: acts.reduce((sum, a) => sum + (a.moving_time ?? 0), 0),
-        shoeId,
-        laps: hasSeveralSteps(w) ? await fetchLaps(key, acts[0].id) : undefined,
-      },
+    markDoneWithResult(id, {
+      // intervals.icu counts in metres; a recorded result is in km. Rounded while still in metres, where a distance ending in 5 m is an exact half and always goes up.
+      km: Math.round(acts.reduce((sum, a) => sum + (a.distance ?? 0), 0) / 10) / 100,
+      sec: acts.reduce((sum, a) => sum + (a.moving_time ?? 0), 0),
+      laps: hasSeveralSteps(w) ? await fetchLaps(key, acts[0].id) : undefined,
     })
   }
 
