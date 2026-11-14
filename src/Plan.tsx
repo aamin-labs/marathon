@@ -1,6 +1,6 @@
 import { DndContext, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { Check, Plus } from 'lucide-react'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { addDays, fmtDate, mondayOf, today } from './lib/dates'
 import { fmtKm } from './lib/pace'
 import { parseItem } from './lib/parse'
@@ -73,7 +73,8 @@ export function Plan({ onOpen }: { onOpen: (id: string, edit?: boolean) => void 
     return { weeks, kms, maxKm: Math.max(1, ...kms.values()) }
   }, [workouts, settings, now])
 
-  useEffect(() => thisWeek.current?.scrollIntoView({ block: 'start' }), [])
+  // A layout effect, so the jump to this week happens before the first paint: a plain effect can show week 1 for a frame after a refresh.
+  useLayoutEffect(() => thisWeek.current?.scrollIntoView({ block: 'start' }), [])
 
   // Where a chip was let go. On release it is drawn in its day at once, so without this it would jump there from under the pointer.
   const [released, setReleased] = useState<{ id: string; left: number; top: number } | null>(null)

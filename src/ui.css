@@ -559,6 +559,9 @@ summary { cursor: pointer; font-size: 0.8125rem; font-weight: 600; padding: calc
 .toast .btn { background: none; border-color: transparent; color: var(--accent-ink); font-weight: 600; }
 @media (min-width: 900px) { .toast { bottom: 1.5rem; } }
 
+/* Set for a moment while the system switches between light and dark (see main.tsx). */
+.no-transitions, .no-transitions * { transition: none !important; }
+
 @media (prefers-reduced-motion: reduce) {
   .sheet, .sheet::backdrop, .toast, .result-details.fresh { animation: none; }
   /* With no exit animation to wait for, a leaving message just goes. */
