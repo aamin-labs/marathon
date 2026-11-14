@@ -9,7 +9,7 @@ import { parseItem, type Step } from './lib/parse'
 import { useStore, type Lap, type Workout } from './lib/store'
 import { useUndo, withUndo } from './lib/undo'
 import { canForecast, fetchConditions } from './lib/weather'
-import { canCorrectDistanceAndTime, defaultShoeId, isRun, plannedKm, workoutState } from './lib/workout'
+import { canCorrectDistanceAndTime, isRun, plannedKm, workoutState, type ResultCorrection } from './lib/workout'
 import { KindTag, Steps } from './Steps'
 
 /** The weather the paces are adjusted for. It fetches the forecast by itself; the two fields are only there to correct it. */
@@ -256,7 +256,10 @@ function ResultField({
 function Result({ w }: { w: Workout }) {
   const settings = useStore((s) => s.settings)
   const shoes = useStore((s) => s.shoes)
-  const updateWorkout = useStore((s) => s.updateWorkout)
+  const markDoneAsPlanned = useStore((s) => s.markDoneAsPlanned)
+  const putBackResult = useStore((s) => s.putBackResult)
+  const correctResult = useStore((s) => s.correctResult)
+  const markNotDone = useStore((s) => s.markNotDone)
   const isDone = workoutState(w) === 'done'
   // The result a Done workout carries: its details are shown and corrected below.
   const done = w.done
@@ -268,28 +271,28 @@ function Result({ w }: { w: Workout }) {
 
   const toggle = (checked: boolean) => {
     if (checked) {
-      const shoeId = defaultShoeId(useStore.getState().workouts, shoes)
       setFresh(true)
-      updateWorkout(w.id, { done: unticked.current ?? (isRun(w) ? { km: Math.round(plannedKm(w, settings) * 10) / 10, sec: 0, shoeId } : { km: 0, sec: 0 }) })
+      if (unticked.current) putBackResult(w.id, unticked.current)
+      else markDoneAsPlanned(w.id)
       unticked.current = undefined
     } else {
       unticked.current = done
-      updateWorkout(w.id, { done: undefined })
+      markNotDone(w.id)
     }
   }
   // Unticking throws away the distance, time and note. While the sheet is open, ticking again puts them back.
   // The "Undo" message sits on the page behind the sheet, so it is offered as the sheet closes: the result goes back for a moment and is removed again as one undoable change.
   useEffect(
     () => () => {
-      const { workouts, updateWorkout } = useStore.getState()
+      const { workouts, putBackResult, markNotDone } = useStore.getState()
       const lost = unticked.current
       if (!lost || !workouts.some((x) => x.id === w.id && workoutState(x) !== 'done')) return
-      updateWorkout(w.id, { done: lost })
-      withUndo('Marked as not done', () => updateWorkout(w.id, { done: undefined }))
+      putBackResult(w.id, lost)
+      withUndo('Marked as not done', () => markNotDone(w.id))
     },
     [w.id],
   )
-  const save = (patch: Partial<NonNullable<Workout['done']>>) => done && updateWorkout(w.id, { done: { ...done, ...patch } })
+  const save = (correction: ResultCorrection) => correctResult(w.id, correction)
 
   const pace = done && done.km > 0 && done.sec > 0 ? done.sec / done.km : null
   // An average-pace verdict only means something for a run at one easy pace.
