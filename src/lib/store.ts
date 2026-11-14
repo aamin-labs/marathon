@@ -2,9 +2,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { addDays, mondayOf, today } from './dates'
 import type { PaceSettings } from './pace'
-import { parsePlan, type Item, type PlanError } from './parse'
+import type { Item } from './parse'
+import { layPlan, type LaidPlan } from './plan'
 import { SAMPLE_ROUTINES, samplePlan } from './samplePlan'
-import { workoutState } from './workout'
 
 export interface Settings extends PaceSettings {
   raceName: string
@@ -58,8 +58,8 @@ interface State extends Data {
   setIcuKey: (key: string) => void
   setSettings: (patch: Partial<Settings>) => void
   setPlanText: (text: string) => void
-  /** Rebuild the schedule from the plan text. Returns the plan's errors; empty means it worked. */
-  applyPlan: () => PlanError[]
+  /** Rebuild the schedule from the plan text. Returns what the Plan module laid, or the plan's errors with nothing changed. */
+  applyPlan: () => LaidPlan
   addWorkout: (date: string, item: Item) => string
   updateWorkout: (id: string, patch: Partial<Workout>) => void
   removeWorkout: (id: string) => void
@@ -72,24 +72,15 @@ interface State extends Data {
 
 const uid = () => crypto.randomUUID()
 
-/** Lay the plan's weeks onto the calendar so the last week contains race day. */
-export function schedule(planText: string, raceDate: string): { workouts: Workout[]; errors: PlanError[] } {
-  const { weeks, errors } = parsePlan(planText)
-  const start = addDays(mondayOf(raceDate), -(weeks.length - 1) * 7)
-  const workouts = weeks.flatMap((days, wi) =>
-    days.flatMap((items, di) => items.map((item) => ({ ...item, id: uid(), date: addDays(start, wi * 7 + di) }))),
-  )
-  return { workouts, errors }
-}
-
 function initial(): Data {
   // Default race day: the Sunday 18 weeks out, so the sample plan starts this week.
   const raceDate = addDays(mondayOf(today()), 17 * 7 + 6)
   const planText = samplePlan()
+  const laid = layPlan(planText, raceDate, [])
   return {
     settings: { raceName: 'My marathon', raceDate, goalTime: '3:30:00', fiveK: '', easyLo: 70, easyHi: 80, lat: null, lon: null, runHour: 7, retireKm: 700 },
     planText,
-    workouts: schedule(planText, raceDate).workouts,
+    workouts: 'workouts' in laid ? laid.workouts : [], // the sample plan has no mistakes, so there are always workouts
     shoes: [],
     routines: SAMPLE_ROUTINES,
   }
@@ -106,13 +97,9 @@ export const useStore = create<State>()(
       setPlanText: (planText) => set({ planText }),
       applyPlan: () => {
         const { planText, settings, workouts } = get()
-        const built = schedule(planText, settings.raceDate)
-        if (built.errors.length) return built.errors
-        // Completed workouts are history: keep them, and don't re-plan the same kind of session on that day.
-        const done = workouts.filter((w) => workoutState(w) === 'done')
-        const fresh = built.workouts.filter((w) => !done.some((d) => d.date === w.date && d.kind === w.kind))
-        set({ workouts: [...done, ...fresh] })
-        return []
+        const laid = layPlan(planText, settings.raceDate, workouts)
+        if ('workouts' in laid) set({ workouts: laid.workouts })
+        return laid
       },
       addWorkout: (date, item) => {
         const id = uid()

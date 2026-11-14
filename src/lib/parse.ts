@@ -42,8 +42,6 @@ export interface Item {
   routine?: string
 }
 
-const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
-
 const KINDS: Record<string, { kind: Kind; title: string; fallback: Target }> = {
   easy: { kind: 'easy', title: 'Easy run', fallback: { t: 'easy' } },
   long: { kind: 'long', title: 'Long run', fallback: { t: 'easy' } },
@@ -126,40 +124,7 @@ export function parseItem(src: string): Item | null {
   return { kind: def.kind, title: head[2]?.trim() || def.title, src: text, blocks }
 }
 
-export interface PlanError {
-  line: number
-  msg: string
-}
-
-/** Whole plan → weeks[week][day 0-6 from Monday] = workouts. */
-export function parsePlan(text: string): { weeks: Item[][][]; errors: PlanError[] } {
-  const weeks: Item[][][] = []
-  const errors: PlanError[] = []
-  text.split('\n').forEach((raw, i) => {
-    const line = raw.trim()
-    if (!line || line.startsWith('#')) return
-    if (/^week\b/i.test(line)) {
-      weeks.push(DAYS.map(() => []))
-      return
-    }
-    const day = line.match(/^([a-z]{3})[a-z]*\s*:\s*(.*)$/i)
-    const di = day ? DAYS.indexOf(day[1].toLowerCase()) : -1
-    if (!day || di < 0) {
-      errors.push({ line: i + 1, msg: `“${line}” should be “Week 1” or a day like “Mon: Easy 10k”.` })
-      return
-    }
-    if (!weeks.length) {
-      errors.push({ line: i + 1, msg: 'Start with a “Week 1” line before the first day.' })
-      return
-    }
-    try {
-      for (const part of splitTop(day[2], '+')) {
-        const item = parseItem(part)
-        if (item) weeks[weeks.length - 1][di].push(item)
-      }
-    } catch (e) {
-      errors.push({ line: i + 1, msg: (e as Error).message })
-    }
-  })
-  return { weeks, errors }
+/** The workouts written for one day, joined with +. A rest day gives none; throws like parseItem. */
+export function parseDay(src: string): Item[] {
+  return splitTop(src, '+').flatMap((part) => parseItem(part) ?? [])
 }

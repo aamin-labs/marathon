@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { DateField, NumberField } from './Fields'
 import { fiveKPace, fmtClock, mpPace, parseClock, targetPaces } from './lib/pace'
-import { parsePlan, type PlanError } from './lib/parse'
+import type { PlanError } from './lib/plan'
 import { exportData, useStore } from './lib/store'
 import { withUndo } from './lib/undo'
 import { SendButton } from './SendButton'
@@ -28,9 +28,9 @@ export function Setup() {
   const easy = targetPaces({ t: 'easy' }, settings)!
 
   const build = () => {
-    const errs = withUndo('Schedule rebuilt', applyPlan)
-    setErrors(errs)
-    setMsg(errs.length ? '' : `Schedule built: ${parsePlan(planText).weeks.length} weeks ending on race day.`)
+    const laid = withUndo('Schedule rebuilt', applyPlan)
+    setErrors('errors' in laid ? laid.errors : [])
+    setMsg('errors' in laid ? '' : `Schedule built: ${laid.weeks} weeks ending on race day.`)
   }
 
   const locate = () => {

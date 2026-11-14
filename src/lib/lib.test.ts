@@ -1,15 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
-import { addDays, fmtCountdown, isPlausibleDate, mondayOf, today } from './dates'
+import { addDays, fmtCountdown, isPlausibleDate, today } from './dates'
 import { fetchCompleted, icuDescription, matchRuns } from './intervals'
 import { fmtClock, mpPace, parseClock, parseRunTime, targetPaces, verdict } from './pace'
 import { parseNumber } from './number'
-import { parseItem, parsePlan } from './parse'
-import { schedule, useStore } from './store'
-import { samplePlan } from './samplePlan'
+import { parseItem } from './parse'
+import { useStore } from './store'
 import { undo, useUndo, withUndo } from './undo'
 import { canForecast } from './weather'
 import { plannedKm } from './workout'
-import breeze80 from '../../marathon-plans/breeze-80.txt?raw'
 
 const S = { goalTime: '3:30:00', easyLo: 70, easyHi: 80 }
 
@@ -76,14 +74,6 @@ describe('plan text', () => {
   it('explains what is wrong', () => {
     expect(() => parseItem('Jog 5k')).toThrow(/should start with/)
     expect(() => parseItem('Easy 10k @fast')).toThrow(/Can’t read the pace/)
-    const { errors } = parsePlan('Mon: Easy 5k\nWeek 1\nTue: Easy ten')
-    expect(errors.map((e) => e.line)).toEqual([1, 3])
-  })
-
-  it('puts several sessions on one day', () => {
-    const { weeks, errors } = parsePlan('Week 1\nTue: Easy 10k + Strength A')
-    expect(errors).toEqual([])
-    expect(weeks[0][1].map((w) => w.kind)).toEqual(['easy', 'strength'])
   })
 
   it('writes a workout in intervals.icu format with absolute paces', () => {
@@ -116,19 +106,6 @@ describe('plan text', () => {
     expect(targetPaces({ t: '5k', lo: 81, hi: 81 }, S)![0]).toBeCloseTo(mpPace(S.goalTime))
     // Walking recoveries add no distance.
     expect(plannedKm(parseItem('Workout 4min @walk, 1k')!, S)).toBe(1)
-  })
-
-  it('reads the Breeze 80 plan and lands near the book weekly totals', () => {
-    const { weeks, errors } = parsePlan(breeze80)
-    expect(errors).toEqual([])
-    expect(weeks).toHaveLength(18)
-    const s = { goalTime: '4:00:00', fiveK: '23:20', easyLo: 70, easyHi: 80 }
-    // Weeks 15 to 17 are a 65–72 km range in the book; race week has no goal.
-    const goals = [55, 61, 68, 58, 68, 74, 80, 68, 80, 80, 80, 68, 80, 80, 68.5, 68.5, 68.5]
-    const race = weeks[17][6].find((w) => w.kind === 'race')!
-    expect(plannedKm(race, s)).toBeCloseTo(42.195)
-    const totals = goals.map((_, i) => weeks[i].flat().reduce((sum, w) => sum + plannedKm(w, s), 0))
-    totals.forEach((km, i) => expect(Math.abs(km - goals[i]), `week ${i + 1}: ${km.toFixed(1)} km`).toBeLessThanOrEqual(4))
   })
 
   it('pairs recorded runs with the planned runs on the same day', () => {
@@ -174,15 +151,6 @@ describe('plan text', () => {
     expect(seen.filter((u) => u.endsWith('/intervals'))).toEqual(['https://intervals.icu/api/v1/activity/i2/intervals'])
     expect(msg).toMatch(/^Logged 2 runs/)
     expect(msg).toMatch(/1 activity reached intervals.icu through Strava/)
-  })
-
-  it('schedules the sample plan to finish on race day', () => {
-    const { workouts, errors } = schedule(samplePlan(), '2027-03-14')
-    expect(errors).toEqual([])
-    const race = workouts.find((w) => w.kind === 'race')!
-    expect(race.date).toBe('2027-03-14')
-    const first = workouts.map((w) => w.date).sort()[0]
-    expect(mondayOf(first)).toBe(addDays('2027-03-08', -17 * 7))
   })
 })
 
@@ -260,7 +228,10 @@ describe('dates', () => {
 
 describe('undo', () => {
   it('puts everything back as it was before the last change', () => {
-    const { workouts } = schedule('Week 1\nMon: Easy 8k\nTue: Easy 10k', '2027-03-14')
+    const workouts = [
+      { ...parseItem('Easy 8k')!, id: 'mon', date: '2027-03-08' },
+      { ...parseItem('Easy 10k')!, id: 'tue', date: '2027-03-09' },
+    ]
     useStore.setState({ workouts })
     withUndo('Workout removed', () => useStore.getState().removeWorkout(workouts[0].id))
     expect(useStore.getState().workouts).toHaveLength(1)
