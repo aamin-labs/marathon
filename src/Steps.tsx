@@ -3,9 +3,9 @@ import type { Kind, Step, Target } from './lib/parse'
 import { useStore, type Workout } from './lib/store'
 
 function amount(step: Step): string {
-  if (step.km != null) return step.km < 1 ? `${Math.round(step.km * 1000)} m` : `${fmtKm(step.km)} km`
+  if (step.km != null) return step.km < 1 ? `${Math.round(step.km * 1000)}\u00A0m` : `${fmtKm(step.km)}\u00A0km`
   const sec = step.sec ?? 0
-  return sec % 60 === 0 ? `${sec / 60} min` : `${sec} s`
+  return sec % 60 === 0 ? `${sec / 60}\u00A0min` : `${sec}\u00A0s`
 }
 
 function targetLabel(t: Target): string {

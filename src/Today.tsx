@@ -85,7 +85,7 @@ export function Today({ onOpen, onSetup }: { onOpen: (id: string) => void; onSet
               <i style={{ transform: `translateX(${(weekPlanned ? Math.min(100, (weekDone / weekPlanned) * 100) : 0) - 100}%)` }} />
             </div>
             <p className="muted">
-              {fmtKm(weekDone)} of {fmtKm(weekPlanned)} km done
+              {fmtKm(weekDone)} of {fmtKm(weekPlanned)}&nbsp;km done
             </p>
           </section>
 

@@ -82,7 +82,7 @@ function Conditions({ w }: { w: Workout }) {
 
   let line = ''
   if (w.heat) {
-    line = `${w.heat.auto ? `Forecast for ${settings.runHour}:00: ` : ''}${w.heat.tempC}° · dew point ${w.heat.dewC}° · ${heat > 0 ? `paces slowed ${heat.toFixed(1)}%` : 'no change to paces'}`
+    line = `${w.heat.auto ? `Forecast for ${settings.runHour}:00: ` : ''}${w.heat.tempC}° · dew point\u00A0${w.heat.dewC}° · ${heat > 0 ? `paces slowed\u00A0${heat.toFixed(1)}%` : 'no change to paces'}`
     if (resend) line += '. Send it to the watch again for the new paces.'
   } else if (loading) line = 'Getting the forecast…'
   else if (failed) line = 'Couldn’t get the forecast.'
@@ -152,9 +152,9 @@ function Laps({ w }: { w: Workout }) {
         const range = step && targetPaces(step.target, settings, heatOf(w))
         return (
           <li className="step" key={i}>
-            <span className="step-amount">{lap.km < 1 ? `${Math.round(lap.km * 1000)} m` : `${fmtKm(lap.km)} km`}</span>
+            <span className="step-amount">{lap.km < 1 ? `${Math.round(lap.km * 1000)}\u00A0m` : `${fmtKm(lap.km)}\u00A0km`}</span>
             <span className="step-target">
-              {range && (pace < range[0] - 2 ? `${Math.round(range[0] - pace)} s fast` : pace > range[1] + 2 ? `${Math.round(pace - range[1])} s slow` : 'On target')}
+              {range && (pace < range[0] - 2 ? `${Math.round(range[0] - pace)}\u00A0s fast` : pace > range[1] + 2 ? `${Math.round(pace - range[1])}\u00A0s slow` : 'On target')}
             </span>
             <span className="step-pace">
               {fmtClock(pace)}
@@ -309,7 +309,7 @@ function Result({ w }: { w: Workout }) {
               {done.laps && <span className="big-num">{fmtKm(done.km)}<small> km</small></span>}
               {done.laps && done.sec > 0 && <span className="big-num">{fmtClock(done.sec)}</span>}
               {pace && <span className="big-num">{fmtClock(pace)}<small> /km</small></span>}
-              {pace && range && <span>{verdict(pace, range)} ({fmtClock(range[0])}–{fmtClock(range[1])} /km).</span>}
+              {pace && range && <span>{verdict(pace, range)} ({fmtClock(range[0])}–{fmtClock(range[1])}&nbsp;/km).</span>}
             </p>
           )}
           {done.laps && <Laps w={w} />}

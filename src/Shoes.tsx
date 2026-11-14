@@ -54,7 +54,7 @@ export function Shoes() {
               <div className={`meter${km >= retireKm ? ' full' : ''}`} role="img" aria-label={`${fmtKm(km)} of ${retireKm} km`}>
                 <i style={{ transform: `translateX(${Math.min(100, (km / retireKm) * 100) - 100}%)` }} />
               </div>
-              <p className="muted">{shoe.retired ? 'Retired' : km >= retireKm ? `Past ${retireKm} km: time to replace them` : `${fmtKm(retireKm - km)} km until ${retireKm} km`}</p>
+              <p className="muted">{shoe.retired ? 'Retired' : km >= retireKm ? `Past ${retireKm}\u00A0km: time to replace them` : `${fmtKm(retireKm - km)}\u00A0km until ${retireKm}\u00A0km`}</p>
               <div className="btn-row">
                 <button className="btn" onClick={() => updateShoe(shoe.id, { retired: !shoe.retired })}>
                   {shoe.retired ? 'Bring back' : 'Retire'}

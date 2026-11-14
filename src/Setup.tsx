@@ -98,7 +98,7 @@ export function Setup() {
         </div>
         {goalOk ? (
           <p className="muted">
-            Marathon pace {fmtClock(mpPace(settings.goalTime))} /km. Easy runs {fmtClock(easy[0])}–{fmtClock(easy[1])} /km. 5K pace {fmtClock(fiveKPace(settings))} /km
+            Marathon pace {fmtClock(mpPace(settings.goalTime))}&nbsp;/km. Easy runs {fmtClock(easy[0])}–{fmtClock(easy[1])}&nbsp;/km. 5K pace {fmtClock(fiveKPace(settings))}&nbsp;/km
             {settings.fiveK?.trim() ? '.' : ', estimated from the goal time until you enter a 5K time.'}
           </p>
         ) : (
