@@ -1,4 +1,5 @@
-import { fmtClock, fmtKm, heatSlowdown, targetPaces } from './lib/pace'
+import { slowdown } from './lib/conditions'
+import { fmtClock, fmtKm, targetPaces } from './lib/pace'
 import type { Kind, Step, Target } from './lib/parse'
 import { useStore, type Workout } from './lib/store'
 import { isRun } from './lib/workout'
@@ -30,13 +31,11 @@ export function KindTag({ kind }: { kind: Kind }) {
   )
 }
 
-export const heatOf = (w: Workout) => (w.heat ? heatSlowdown(w.heat.tempC, w.heat.dewC) : 0)
-
 /** The workout's steps with the paces to run them at, slowed for heat when conditions are set. */
 export function Steps({ w }: { w: Workout }) {
   const settings = useStore((s) => s.settings)
   const routines = useStore((s) => s.routines)
-  const heat = heatOf(w)
+  const heat = slowdown(w)
 
   if (!isRun(w)) {
     const routine = routines.find((r) => r.name.toLowerCase() === w.routine?.toLowerCase())

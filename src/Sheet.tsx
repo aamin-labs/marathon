@@ -1,15 +1,16 @@
 import { X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { DateField } from './Fields'
+import { slowdown } from './lib/conditions'
 import { fmtDate, today } from './lib/dates'
 import { parseNumber } from './lib/number'
-import { fmtClock, fmtKm, heatSlowdown, parseRunTime, targetPaces, verdict } from './lib/pace'
+import { fmtClock, fmtKm, parseRunTime, targetPaces, verdict } from './lib/pace'
 import { parseItem, type Step } from './lib/parse'
 import { useStore, type Lap, type Workout } from './lib/store'
 import { useUndo, withUndo } from './lib/undo'
 import { canForecast, fetchConditions } from './lib/weather'
 import { canCorrectDistanceAndTime, defaultShoeId, isRun, plannedKm, workoutState } from './lib/workout'
-import { heatOf, KindTag, Steps } from './Steps'
+import { KindTag, Steps } from './Steps'
 
 /** The weather the paces are adjusted for. It fetches the forecast by itself; the two fields are only there to correct it. */
 function Conditions({ w }: { w: Workout }) {
@@ -25,7 +26,7 @@ function Conditions({ w }: { w: Workout }) {
   // Set once the runner types conditions in this sheet: from then on a forecast still on its way must not replace them.
   const typed = useRef(false)
   const lineId = useId()
-  const heat = heatOf(w)
+  const heat = slowdown(w)
   const done = workoutState(w) === 'done'
   const { lat, lon } = settings
   const hasPlace = lat != null && lon != null
@@ -57,8 +58,7 @@ function Conditions({ w }: { w: Workout }) {
           const { pending } = useUndo.getState()
           updateWorkout(w.id, { heat: { ...c, auto: true } })
           useUndo.setState({ pending })
-          const before = saved ? heatSlowdown(saved.tempC, saved.dewC) : 0
-          if (w.id in pushed && heatSlowdown(c.tempC, c.dewC) !== before) setResend(true)
+          if (w.id in pushed && slowdown({ heat: c }) !== slowdown({ heat: saved })) setResend(true)
         }
       }
     } catch {
@@ -151,7 +151,7 @@ function Laps({ w }: { w: Workout }) {
     <ol className="steps">
       {rows.map(({ lap, step }, i) => {
         const pace = lap.sec / lap.km
-        const range = step && targetPaces(step.target, settings, heatOf(w))
+        const range = step && targetPaces(step.target, settings, slowdown(w))
         return (
           <li className="step" key={i}>
             <span className="step-amount">{lap.km < 1 ? `${Math.round(lap.km * 1000)}\u00A0m` : `${fmtKm(lap.km)}\u00A0km`}</span>
@@ -293,7 +293,7 @@ function Result({ w }: { w: Workout }) {
 
   const pace = done && done.km > 0 && done.sec > 0 ? done.sec / done.km : null
   // An average-pace verdict only means something for a run at one easy pace.
-  const range = done && (w.kind === 'easy' || w.kind === 'long') && !done.laps ? targetPaces({ t: 'easy' }, settings, heatOf(w)) : null
+  const range = done && (w.kind === 'easy' || w.kind === 'long') && !done.laps ? targetPaces({ t: 'easy' }, settings, slowdown(w)) : null
 
   return (
     // A form so the fields behave like one; there is nothing to submit, because each field saves itself.
