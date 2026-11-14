@@ -2,9 +2,9 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { addDays, mondayOf, today } from './dates'
 import type { PaceSettings } from './pace'
-import { stepsWithPaces, trainingPaces } from './paces'
 import { parsePlan, type Item, type PlanError } from './parse'
 import { SAMPLE_ROUTINES, samplePlan } from './samplePlan'
+import { workoutState } from './workout'
 
 export interface Settings extends PaceSettings {
   raceName: string
@@ -82,26 +82,6 @@ export function schedule(planText: string, raceDate: string): { workouts: Workou
   return { workouts, errors }
 }
 
-/** Planned distance; timed steps are estimated at the middle of their target pace. */
-export function plannedKm(w: Item, s: PaceSettings): number {
-  let km = 0
-  // Only the steps are handed over, without the workout's conditions, so the total does not move with the weather.
-  for (const b of stepsWithPaces({ blocks: w.blocks }, s))
-    for (const step of b.steps) {
-      if (step.km != null) km += b.reps * step.km
-      else if (step.sec != null) {
-        if (step.target.t === 'none' && step.target.label === 'Walk') continue // walking isn't running distance
-        const [fast, slow] = step.paces ?? trainingPaces(s).easy
-        km += (b.reps * step.sec) / ((fast + slow) / 2)
-      }
-    }
-  return km
-}
-
-export function shoeKm(shoe: Shoe, workouts: Workout[]): number {
-  return workouts.reduce((sum, w) => (w.done?.shoeId === shoe.id ? sum + w.done.km : sum), shoe.startKm)
-}
-
 function initial(): Data {
   // Default race day: the Sunday 18 weeks out, so the sample plan starts this week.
   const raceDate = addDays(mondayOf(today()), 17 * 7 + 6)
@@ -129,7 +109,7 @@ export const useStore = create<State>()(
         const built = schedule(planText, settings.raceDate)
         if (built.errors.length) return built.errors
         // Completed workouts are history: keep them, and don't re-plan the same kind of session on that day.
-        const done = workouts.filter((w) => w.done)
+        const done = workouts.filter((w) => workoutState(w) === 'done')
         const fresh = built.workouts.filter((w) => !done.some((d) => d.date === w.date && d.kind === w.kind))
         set({ workouts: [...done, ...fresh] })
         return []

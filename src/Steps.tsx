@@ -2,6 +2,7 @@ import { fmtClock, fmtKm } from './lib/pace'
 import { stepsWithPaces, type StepWithPaces } from './lib/paces'
 import type { Kind, Step, Target } from './lib/parse'
 import { useStore, type Workout } from './lib/store'
+import { isRun } from './lib/workout'
 
 function amount(step: Step): string {
   if (step.km != null) return step.km < 1 ? `${Math.round(step.km * 1000)}\u00A0m` : `${fmtKm(step.km)}\u00A0km`
@@ -35,7 +36,7 @@ export function Steps({ w }: { w: Workout }) {
   const settings = useStore((s) => s.settings)
   const routines = useStore((s) => s.routines)
 
-  if (w.kind === 'strength') {
+  if (!isRun(w)) {
     const routine = routines.find((r) => r.name.toLowerCase() === w.routine?.toLowerCase())
     if (!routine) return <p className="muted">No routine called “{w.routine}” yet. Add its exercises in Setup.</p>
     return (

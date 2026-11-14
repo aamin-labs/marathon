@@ -7,9 +7,10 @@ import { parseNumber } from './lib/number'
 import { fmtClock, fmtKm, parseRunTime, verdict } from './lib/pace'
 import { targetPaces } from './lib/paces'
 import { parseItem, type Step } from './lib/parse'
-import { plannedKm, useStore, type Lap, type Workout } from './lib/store'
+import { useStore, type Lap, type Workout } from './lib/store'
 import { useUndo, withUndo } from './lib/undo'
 import { canForecast, fetchConditions } from './lib/weather'
+import { canCorrectDistanceAndTime, defaultShoeId, isRun, plannedKm, workoutState } from './lib/workout'
 import { KindTag, Steps } from './Steps'
 
 /** The weather the paces are adjusted for. It fetches the forecast by itself; the two fields are only there to correct it. */
@@ -27,9 +28,10 @@ function Conditions({ w }: { w: Workout }) {
   const typed = useRef(false)
   const lineId = useId()
   const heat = slowdown(w)
+  const done = workoutState(w) === 'done'
   const { lat, lon } = settings
   const hasPlace = lat != null && lon != null
-  const forecastable = !w.done && hasPlace && canForecast(w.date)
+  const forecastable = !done && hasPlace && canForecast(w.date)
 
   const apply = (t: string, d: string) => {
     typed.current = true
@@ -69,7 +71,7 @@ function Conditions({ w }: { w: Workout }) {
   // On opening, get the forecast, or a newer one: it sharpens as the day gets closer. Conditions entered by hand are left alone.
   // Moving the workout to another day asks again, and drops a forecast that belonged to the old day.
   useEffect(() => {
-    if (w.done || (w.heat && !w.heat.auto)) return
+    if (done || (w.heat && !w.heat.auto)) return
     if (!forecastable) {
       if (w.heat && w.date > today()) updateWorkout(w.id, { heat: undefined })
       return
@@ -92,7 +94,7 @@ function Conditions({ w }: { w: Workout }) {
   else line = 'Paces are not adjusted for the heat.'
 
   // A done workout keeps the conditions it was run in, if there were any, and nothing can be changed.
-  if (w.done) return w.heat ? <p className="muted">{line}</p> : null
+  if (done) return w.heat ? <p className="muted">{line}</p> : null
 
   return (
     <div className="conditions">
@@ -256,8 +258,10 @@ function Result({ w }: { w: Workout }) {
   const settings = useStore((s) => s.settings)
   const shoes = useStore((s) => s.shoes)
   const updateWorkout = useStore((s) => s.updateWorkout)
-  const isRun = w.kind !== 'strength'
+  const isDone = workoutState(w) === 'done'
+  // The result a Done workout carries: its details are shown and corrected below.
   const done = w.done
+  const correctable = canCorrectDistanceAndTime(w)
   // True once the box is ticked in this sheet, as opposed to the workout being opened already done.
   const [fresh, setFresh] = useState(false)
   // The result as it was before the box was unticked, so ticking it again puts it all back.
@@ -265,11 +269,9 @@ function Result({ w }: { w: Workout }) {
 
   const toggle = (checked: boolean) => {
     if (checked) {
-      // Default to the shoe worn on the most recent done run.
-      const lastShoe = [...useStore.getState().workouts].filter((x) => x.done?.shoeId).sort((a, b) => b.date.localeCompare(a.date))[0]?.done?.shoeId
-      const shoeId = shoes.some((s) => s.id === lastShoe && !s.retired) ? lastShoe : undefined
+      const shoeId = defaultShoeId(useStore.getState().workouts, shoes)
       setFresh(true)
-      updateWorkout(w.id, { done: unticked.current ?? (isRun ? { km: Math.round(plannedKm(w, settings) * 10) / 10, sec: 0, shoeId } : { km: 0, sec: 0 }) })
+      updateWorkout(w.id, { done: unticked.current ?? (isRun(w) ? { km: Math.round(plannedKm(w, settings) * 10) / 10, sec: 0, shoeId } : { km: 0, sec: 0 }) })
       unticked.current = undefined
     } else {
       unticked.current = done
@@ -282,7 +284,7 @@ function Result({ w }: { w: Workout }) {
     () => () => {
       const { workouts, updateWorkout } = useStore.getState()
       const lost = unticked.current
-      if (!lost || !workouts.some((x) => x.id === w.id && !x.done)) return
+      if (!lost || !workouts.some((x) => x.id === w.id && workoutState(x) !== 'done')) return
       updateWorkout(w.id, { done: lost })
       withUndo('Marked as not done', () => updateWorkout(w.id, { done: undefined }))
     },
@@ -296,26 +298,26 @@ function Result({ w }: { w: Workout }) {
 
   return (
     // A form so the fields behave like one; there is nothing to submit, because each field saves itself.
-    <form className={`result${done ? ' done' : ''}`} onSubmit={(e) => e.preventDefault()}>
+    <form className={`result${isDone ? ' done' : ''}`} onSubmit={(e) => e.preventDefault()}>
       <h3>How it went</h3>
       <label className="check">
-        <input type="checkbox" checked={!!done} onChange={(e) => toggle(e.target.checked)} />
+        <input type="checkbox" checked={isDone} onChange={(e) => toggle(e.target.checked)} />
         Done
       </label>
       {done && (
         <div className={`result-details${fresh ? ' fresh' : ''}`}>
-          {isRun && (pace || done.laps) && (
+          {isRun(w) && (pace || done.laps) && (
             <p className="result-nums">
               {/* A fetched run's distance and time are the watch's, shown as text: typing over them would leave its laps not adding up. */}
-              {done.laps && <span className="big-num">{fmtKm(done.km)}<small> km</small></span>}
-              {done.laps && done.sec > 0 && <span className="big-num">{fmtClock(done.sec)}</span>}
+              {!correctable && <span className="big-num">{fmtKm(done.km)}<small> km</small></span>}
+              {!correctable && done.sec > 0 && <span className="big-num">{fmtClock(done.sec)}</span>}
               {pace && <span className="big-num">{fmtClock(pace)}<small> /km</small></span>}
               {pace && range && <span>{verdict(pace, range)} ({fmtClock(range[0])}–{fmtClock(range[1])}&nbsp;/km).</span>}
             </p>
           )}
           {done.laps && <Laps w={w} />}
           <div className="fields">
-            {isRun && !done.laps && (
+            {isRun(w) && correctable && (
               <>
                 <ResultField
                   label="Distance"
@@ -341,7 +343,7 @@ function Result({ w }: { w: Workout }) {
               </>
             )}
             {/* A select, not text: fetched runs get a guessed pair, so it has to be correctable here. */}
-            {isRun && shoes.some((s) => !s.retired || s.id === done.shoeId) && (
+            {isRun(w) && shoes.some((s) => !s.retired || s.id === done.shoeId) && (
               <label>
                 Shoes
                 <select value={done.shoeId ?? ''} onChange={(e) => save({ shoeId: e.target.value || undefined })}>
@@ -498,7 +500,7 @@ export function Sheet({ id, startEditing = false, onClose }: { id: string; start
           <h2>{w.title}</h2>
           <p className="muted">{fmtDate(w.date, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
-        {w.kind !== 'strength' && (
+        {isRun(w) && (
           <span className="big-num">
             {fmtKm(plannedKm(w, settings))}
             <small> km</small>
@@ -510,7 +512,7 @@ export function Sheet({ id, startEditing = false, onClose }: { id: string; start
       </header>
       {/* The plan, as text to read. Only the result below it has fields to fill in. */}
       <Steps w={w} />
-      {w.kind !== 'strength' && <Conditions w={w} />}
+      {isRun(w) && <Conditions w={w} />}
       <Result w={w} />
       <Edit w={w} startOpen={startEditing} onClose={onClose} />
     </dialog>

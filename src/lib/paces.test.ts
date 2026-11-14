@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { fmtClock, type PaceSettings } from './pace'
 import { stepsWithPaces, trainingPaces } from './paces'
 import { parseItem } from './parse'
-import { plannedKm, type Workout } from './store'
+import type { Workout } from './store'
+import { plannedKm } from './workout'
 
 const S: PaceSettings = { goalTime: '3:30:00', easyLo: 70, easyHi: 80 }
 
