@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { addDays, fmtCountdown, isPlausibleDate, mondayOf, today } from './dates'
 import { fetchCompleted, icuDescription, matchRuns } from './intervals'
-import { fmtClock, mpPace, parseClock, parseRunTime, targetPaces, verdict } from './pace'
+import { fmtClock, parseClock, parseRunTime, verdict } from './pace'
 import { parseNumber } from './number'
 import { parseItem, parsePlan } from './parse'
 import { plannedKm, schedule, useStore } from './store'
@@ -19,22 +19,6 @@ describe('pace', () => {
     expect(parseClock('')).toBeNull()
     expect(fmtClock(12600)).toBe('3:30:00')
     expect(fmtClock(298.6)).toBe('4:59')
-  })
-
-  it('turns a 3:30 goal into 4:59/km marathon pace', () => {
-    expect(fmtClock(mpPace('3:30:00'))).toBe('4:59')
-  })
-
-  it('treats percentages as speed, so 105% is faster than marathon pace', () => {
-    const [fast, slow] = targetPaces({ t: 'mp', lo: 100, hi: 105 }, S)!
-    expect(fmtClock(slow)).toBe('4:59')
-    expect(fmtClock(fast)).toBe('4:44')
-  })
-
-  it('slows paces in the heat', () => {
-    const cool = targetPaces({ t: 'easy' }, S)!
-    const hot = targetPaces({ t: 'easy' }, S, 4)!
-    expect(hot[0]).toBeCloseTo(cool[0] * 1.04)
   })
 
   it('judges an actual pace against the range', () => {
@@ -108,11 +92,6 @@ describe('plan text', () => {
     const w = parseItem('Workout "Cruise": 2k @easy, 4x(20s @strides, 40s @easy), 6x(3min @90-92% 5k, 1min @walk), 8k @progression')!
     expect(w.blocks[1].steps[0].target).toEqual({ t: 'none', label: 'Strides' })
     expect(w.blocks[2].steps[0].target).toEqual({ t: '5k', lo: 90, hi: 92 })
-    // A 20:00 5K is 4:00/km, so 90–92% of that speed is 4:21–4:27/km.
-    const [fast, slow] = targetPaces({ t: '5k', lo: 90, hi: 92 }, { ...S, fiveK: '20:00' })!
-    expect([fmtClock(fast), fmtClock(slow)]).toEqual(['4:21', '4:27'])
-    // With no 5K time, 5K pace comes from the goal time: marathon speed is taken as 81% of 5K speed.
-    expect(targetPaces({ t: '5k', lo: 81, hi: 81 }, S)![0]).toBeCloseTo(mpPace(S.goalTime))
     // Walking recoveries add no distance.
     expect(plannedKm(parseItem('Workout 4min @walk, 1k')!, S)).toBe(1)
   })

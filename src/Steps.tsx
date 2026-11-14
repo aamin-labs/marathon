@@ -1,5 +1,5 @@
-import { slowdown } from './lib/conditions'
-import { fmtClock, fmtKm, targetPaces } from './lib/pace'
+import { fmtClock, fmtKm } from './lib/pace'
+import { stepsWithPaces, type StepWithPaces } from './lib/paces'
 import type { Kind, Step, Target } from './lib/parse'
 import { useStore, type Workout } from './lib/store'
 
@@ -34,7 +34,6 @@ export function KindTag({ kind }: { kind: Kind }) {
 export function Steps({ w }: { w: Workout }) {
   const settings = useStore((s) => s.settings)
   const routines = useStore((s) => s.routines)
-  const heat = slowdown(w)
 
   if (w.kind === 'strength') {
     const routine = routines.find((r) => r.name.toLowerCase() === w.routine?.toLowerCase())
@@ -48,8 +47,8 @@ export function Steps({ w }: { w: Workout }) {
     )
   }
 
-  const row = (step: Step, key: number) => {
-    const paces = targetPaces(step.target, settings, heat)
+  const row = (step: StepWithPaces, key: number) => {
+    const { paces } = step
     return (
       <li className="step" key={key}>
         <span className="step-amount">{amount(step)}</span>
@@ -64,7 +63,7 @@ export function Steps({ w }: { w: Workout }) {
 
   return (
     <ol className="steps">
-      {w.blocks.map((b, i) =>
+      {stepsWithPaces(w, settings).map((b, i) =>
         b.reps === 1 ? (
           row(b.steps[0], i)
         ) : (

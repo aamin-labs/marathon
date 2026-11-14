@@ -1,7 +1,6 @@
-import { slowdown } from './conditions'
 import { addDays, today } from './dates'
-import { fmtClock, targetPaces, type PaceSettings } from './pace'
-import type { Step } from './parse'
+import { fmtClock, type PaceSettings } from './pace'
+import { stepsWithPaces, type StepWithPaces } from './paces'
 import { plannedKm, useStore, type Lap, type Workout } from './store'
 
 // Sends planned runs to the intervals.icu calendar. From there the Intervals Companion
@@ -13,7 +12,7 @@ export const DAYS_AHEAD = 7
 export const DAYS_BACK = 28
 
 // intervals.icu reads "m" as minutes, so metres must be written "mtr".
-function icuStep(step: Step, s: PaceSettings, heatPct: number): string {
+function icuStep(step: StepWithPaces): string {
   let size: string
   if (step.km != null) size = step.km < 1 ? `${Math.round(step.km * 1000)}mtr` : `${step.km}km`
   else {
@@ -21,19 +20,17 @@ function icuStep(step: Step, s: PaceSettings, heatPct: number): string {
     size = `${sec >= 60 ? `${Math.floor(sec / 60)}m` : ''}${sec % 60 ? `${sec % 60}s` : ''}`
   }
   // Paces go out as absolute min/km: intervals.icu's own percentages are of threshold pace, not marathon pace.
-  const paces = targetPaces(step.target, s, heatPct)
-  if (!paces) return `- ${size}`
-  const [fast, slow] = paces.map((p) => `${fmtClock(p)}/km`)
+  if (!step.paces) return `- ${size}`
+  const [fast, slow] = step.paces.map((p) => `${fmtClock(p)}/km`)
   return `- ${size} ${fast === slow ? fast : `${fast}-${slow}`} Pace`
 }
 
 /** The workout in intervals.icu's text format, with heat-adjusted paces when conditions are set. */
 export function icuDescription(w: Workout, s: PaceSettings): string {
-  const heat = slowdown(w)
   // Repeat blocks need a blank line either side.
-  return w.blocks
+  return stepsWithPaces(w, s)
     .map((b) => {
-      const steps = b.steps.map((step) => icuStep(step, s, heat)).join('\n')
+      const steps = b.steps.map(icuStep).join('\n')
       return b.reps > 1 ? `\n${b.reps}x\n${steps}\n` : steps
     })
     .join('\n')
