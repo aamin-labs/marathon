@@ -1,12 +1,14 @@
+import { X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { DateField } from './Fields'
 import { fmtDate } from './lib/dates'
+import { parseNumber } from './lib/number'
 import { fmtClock, fmtKm, parseClock, targetPaces, verdict } from './lib/pace'
 import { parseItem, type Step } from './lib/parse'
 import { plannedKm, useStore, type Lap, type Workout } from './lib/store'
 import { withUndo } from './lib/undo'
 import { fetchConditions } from './lib/weather'
-import { heatOf, Steps } from './Steps'
+import { heatOf, KindTag, Steps } from './Steps'
 
 function Heat({ w }: { w: Workout }) {
   const settings = useStore((s) => s.settings)
@@ -19,8 +21,9 @@ function Heat({ w }: { w: Workout }) {
   const apply = (t: string, d: string) => {
     setTemp(t)
     setDew(d)
-    const ok = t.trim() !== '' && d.trim() !== '' && Number.isFinite(Number(t)) && Number.isFinite(Number(d))
-    updateWorkout(w.id, { heat: ok ? { tempC: Number(t), dewC: Number(d) } : undefined })
+    const tempC = parseNumber(t)
+    const dewC = parseNumber(d)
+    updateWorkout(w.id, { heat: tempC != null && dewC != null ? { tempC, dewC } : undefined })
   }
 
   const forecast = async () => {
@@ -39,13 +42,14 @@ function Heat({ w }: { w: Workout }) {
     <section className="sheet-section">
       <h3>Heat</h3>
       <div className="fields">
+        {/* The full keyboard, not the number pad: the phone's number pad has no minus, and dew points go below zero. */}
         <label>
           Temperature °C
-          <input inputMode="decimal" value={temp} onChange={(e) => apply(e.target.value, dew)} />
+          <input inputMode="text" value={temp} onChange={(e) => apply(e.target.value, dew)} />
         </label>
         <label>
           Dew point °C
-          <input inputMode="decimal" value={dew} onChange={(e) => apply(temp, e.target.value)} />
+          <input inputMode="text" value={dew} onChange={(e) => apply(temp, e.target.value)} />
         </label>
         <button className="btn" onClick={forecast}>
           Use forecast
@@ -96,7 +100,7 @@ function Laps({ w }: { w: Workout }) {
 }
 
 /** `fresh` is true when the workout was logged a moment ago in this sheet, as opposed to opened already done. */
-function Result({ w, fresh, onLogged }: { w: Workout; fresh: boolean; onLogged: () => void }) {
+function Result({ w, fresh, onLogged, onClose }: { w: Workout; fresh: boolean; onLogged: () => void; onClose: (then?: () => void) => void }) {
   const settings = useStore((s) => s.settings)
   const shoes = useStore((s) => s.shoes)
   const workouts = useStore((s) => s.workouts)
@@ -109,6 +113,11 @@ function Result({ w, fresh, onLogged }: { w: Workout; fresh: boolean; onLogged: 
   const [shoeId, setShoeId] = useState(lastShoe ?? '')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
+  // Logging swaps the form for the result, taking the pressed button with it. Keyboard focus moves to the result's heading, or it would be left nowhere.
+  const heading = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (fresh) heading.current?.focus()
+  }, [fresh])
 
   if (w.done) {
     const pace = w.done.km > 0 && w.done.sec > 0 ? w.done.sec / w.done.km : null
@@ -116,7 +125,9 @@ function Result({ w, fresh, onLogged }: { w: Workout; fresh: boolean; onLogged: 
     const range = (w.kind === 'easy' || w.kind === 'long') && !w.done.laps ? targetPaces({ t: 'easy' }, settings, heatOf(w)) : null
     return (
       <section className="sheet-section">
-        <h3>Done</h3>
+        <h3 ref={heading} tabIndex={-1}>
+          Done
+        </h3>
         {isRun && (
           <p className={`result${fresh ? ' fresh' : ''}`}>
             <span className="big-num">{fmtKm(w.done.km)}<small> km</small></span>
@@ -139,7 +150,8 @@ function Result({ w, fresh, onLogged }: { w: Workout; fresh: boolean; onLogged: 
           </label>
         )}
         {w.done.note && <p>{w.done.note}</p>}
-        <button className="btn" onClick={() => updateWorkout(w.id, { done: undefined })}>
+        {/* This throws away the logged distance, time and note, so it can be undone. The sheet closes first: the undo message sits on the page behind it. */}
+        <button className="btn" onClick={() => onClose(() => withUndo('Marked as not done', () => updateWorkout(w.id, { done: undefined })))}>
           Mark as not done
         </button>
       </section>
@@ -148,12 +160,14 @@ function Result({ w, fresh, onLogged }: { w: Workout; fresh: boolean; onLogged: 
 
   const save = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!isRun) return updateWorkout(w.id, { done: { km: 0, sec: 0, note: note || undefined } })
-    const dist = Number(km)
-    const sec = time.trim() ? parseClock(time) : 0
-    if (!Number.isFinite(dist) || dist <= 0) return setError('Enter the distance in km, like 10.2.')
-    if (sec == null) return setError('Enter the time as 52:30 or 1:45:00.')
-    updateWorkout(w.id, { done: { km: dist, sec, shoeId: shoeId || undefined, note: note || undefined } })
+    if (isRun) {
+      const dist = parseNumber(km)
+      const sec = time.trim() ? parseClock(time) : 0
+      if (dist == null || dist <= 0) return setError('Enter the distance in km, like 10.2.')
+      // A time with no colon is a slip, not seconds: "5230" would otherwise be logged as 1:27:10.
+      if (sec == null || (sec > 0 && !time.includes(':'))) return setError('Enter the time as 52:30 or 1:45:00.')
+      updateWorkout(w.id, { done: { km: dist, sec, shoeId: shoeId || undefined, note: note || undefined } })
+    } else updateWorkout(w.id, { done: { km: 0, sec: 0, note: note || undefined } })
     onLogged()
   }
 
@@ -169,7 +183,7 @@ function Result({ w, fresh, onLogged }: { w: Workout; fresh: boolean; onLogged: 
             </label>
             <label>
               Time
-              <input inputMode="numeric" placeholder="52:30" value={time} onChange={(e) => setTime(e.target.value)} />
+              <input inputMode="text" placeholder="52:30" value={time} onChange={(e) => setTime(e.target.value)} />
             </label>
             {shoes.some((s) => !s.retired) && (
               <label>
@@ -189,32 +203,39 @@ function Result({ w, fresh, onLogged }: { w: Workout; fresh: boolean; onLogged: 
           <input value={note} onChange={(e) => setNote(e.target.value)} />
         </label>
       </div>
-      {error && <p className="error" role="alert">{error}</p>}
+      <p className="error status-line" role="alert">{error}</p>
       <button className="btn primary">Mark as done</button>
     </form>
   )
 }
 
-function Edit({ w, onClose }: { w: Workout; onClose: () => void }) {
+/** `startOpen` shows the section already open: a workout that was just added is a placeholder waiting to be changed. */
+function Edit({ w, startOpen, onClose }: { w: Workout; startOpen: boolean; onClose: () => void }) {
   const updateWorkout = useStore((s) => s.updateWorkout)
   const removeWorkout = useStore((s) => s.removeWorkout)
   const [src, setSrc] = useState(w.src)
+  // The day waits for "Save changes" like the text does: one section, one way of saving.
+  const [date, setDate] = useState(w.date)
   const [error, setError] = useState('')
-  const unchanged = src.trim() === w.src
+  const [saved, setSaved] = useState(false)
+  const unchanged = src.trim() === w.src && date === w.date
 
   const save = () => {
     try {
       const item = parseItem(src)
       if (!item) return setError('To make this a rest day, remove the workout instead.')
-      updateWorkout(w.id, item)
+      updateWorkout(w.id, { ...item, date })
+      setSrc(item.src)
       setError('')
+      setSaved(true)
     } catch (e) {
+      setSaved(false)
       setError((e as Error).message)
     }
   }
 
   return (
-    <details className="sheet-section">
+    <details className="sheet-section" open={startOpen}>
       <summary>Change this workout</summary>
       <div className="fields">
         <label className="wide">
@@ -223,17 +244,29 @@ function Edit({ w, onClose }: { w: Workout; onClose: () => void }) {
           <textarea
             rows={3}
             value={src}
-            onChange={(e) => setSrc(e.target.value)}
+            onChange={(e) => {
+              setSrc(e.target.value)
+              setSaved(false)
+            }}
             onKeyDown={(e) => e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !unchanged && save()}
             spellCheck={false}
           />
         </label>
         <label>
           Day
-          <DateField value={w.date} onSave={(date) => updateWorkout(w.id, { date })} />
+          <DateField
+            value={date}
+            onSave={(d) => {
+              setDate(d)
+              setSaved(false)
+            }}
+          />
         </label>
       </div>
-      {error && <p className="error" role="alert">{error}</p>}
+      {/* One line, always there: it carries the error or the confirmation, and the buttons below stay put. */}
+      <p className={`status-line ${error ? 'error' : 'muted'}`} role={error ? 'alert' : 'status'}>
+        {error || (saved && 'Saved.')}
+      </p>
       <div className="btn-row">
         <button className="btn" onClick={save} disabled={unchanged}>
           Save changes
@@ -252,27 +285,38 @@ function Edit({ w, onClose }: { w: Workout; onClose: () => void }) {
   )
 }
 
-export function Sheet({ id, onClose }: { id: string; onClose: () => void }) {
+export function Sheet({ id, startEditing = false, onClose }: { id: string; startEditing?: boolean; onClose: () => void }) {
   const w = useStore((s) => s.workouts.find((x) => x.id === id))
   const settings = useStore((s) => s.settings)
 
   const ref = useRef<HTMLDialogElement>(null)
   const pressedBackdrop = useRef(false)
   const [logged, setLogged] = useState(false)
+  // Something to do once the sheet has finished closing.
+  const afterClose = useRef<(() => void) | undefined>(undefined)
 
   // showModal is what makes it a real modal: focus moves in and stays in, Escape closes it, the page behind can't be reached.
   useEffect(() => {
-    if (ref.current && !ref.current.open) ref.current.showModal()
-  }, [])
+    const dialog = ref.current
+    if (!dialog) return
+    if (!dialog.open) dialog.showModal()
+    // A just-added workout opens with its text selected, ready to be typed over.
+    const text = startEditing && dialog.querySelector<HTMLTextAreaElement>('details textarea')
+    if (text) {
+      text.focus()
+      text.select()
+    }
+  }, [startEditing])
 
   if (!w) return null
 
   // Closing through the dialog itself, not just unmounting it, is what sends focus back to the button that opened it.
   // (Removing the workout skips this and unmounts directly: the chip that opened the sheet is gone too.)
-  // It first plays its exit (see [data-closing] in the stylesheet), then closes for real.
-  const close = () => {
+  // It first plays its exit (see [data-closing] in the stylesheet), then closes for real, then runs `then` if there is one.
+  const close = (then?: () => void) => {
     const dialog = ref.current
     if (!dialog) return
+    if (then) afterClose.current = then
     if ('closing' in dialog.dataset || matchMedia('(prefers-reduced-motion: reduce)').matches) return dialog.close()
     dialog.dataset.closing = ''
     dialog.addEventListener('animationend', (e) => e.target === dialog && dialog.close())
@@ -288,7 +332,10 @@ export function Sheet({ id, onClose }: { id: string; onClose: () => void }) {
       ref={ref}
       className={`sheet k-${w.kind}`}
       aria-label={w.title}
-      onClose={onClose}
+      onClose={() => {
+        onClose()
+        afterClose.current?.()
+      }}
       // Escape would close it on the spot; send it through the same exit as the close button.
       onCancel={(e) => {
         e.preventDefault()
@@ -300,8 +347,9 @@ export function Sheet({ id, onClose }: { id: string; onClose: () => void }) {
     >
       <header className="sheet-head">
         <div>
-          <p className="muted">{fmtDate(w.date, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <KindTag kind={w.kind} />
           <h2>{w.title}</h2>
+          <p className="muted">{fmtDate(w.date, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
         </div>
         {w.kind !== 'strength' && (
           <span className="big-num">
@@ -309,15 +357,15 @@ export function Sheet({ id, onClose }: { id: string; onClose: () => void }) {
             <small> km</small>
           </span>
         )}
-        <button className="btn close" onClick={close} aria-label="Close">
-          ✕
+        <button className="btn close" onClick={() => close()} aria-label="Close">
+          <X size={16} strokeWidth={1.75} aria-hidden="true" />
         </button>
       </header>
       <Steps w={w} />
       {w.kind !== 'strength' && !w.done && <Heat w={w} />}
       {/* key resets the form when the workout's done state flips */}
-      <Result key={String(!!w.done)} w={w} fresh={logged} onLogged={() => setLogged(true)} />
-      <Edit key={w.src} w={w} onClose={onClose} />
+      <Result key={String(!!w.done)} w={w} fresh={logged} onLogged={() => setLogged(true)} onClose={close} />
+      <Edit w={w} startOpen={startEditing} onClose={onClose} />
     </dialog>
   )
 }

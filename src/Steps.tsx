@@ -1,5 +1,5 @@
 import { fmtClock, fmtKm, heatSlowdown, targetPaces } from './lib/pace'
-import type { Step, Target } from './lib/parse'
+import type { Kind, Step, Target } from './lib/parse'
 import { useStore, type Workout } from './lib/store'
 
 function amount(step: Step): string {
@@ -15,6 +15,18 @@ function targetLabel(t: Target): string {
   if (t.t === 'mp' && t.lo === 100 && t.hi === 100) return 'Marathon pace'
   const of = t.t === '5k' ? '5K pace' : 'marathon pace'
   return t.lo === t.hi ? `${t.lo}% of ${of}` : `${t.lo}–${t.hi}% of ${of}`
+}
+
+const KIND_NAMES: Record<Kind, string> = { easy: 'Easy', long: 'Long run', quality: 'Quality', race: 'Race', strength: 'Strength' }
+
+/** A small label naming the kind of session, in that kind's colour. */
+export function KindTag({ kind }: { kind: Kind }) {
+  return (
+    <span className={`kind k-${kind}`}>
+      <span className="dot" />
+      {KIND_NAMES[kind]}
+    </span>
+  )
 }
 
 export const heatOf = (w: Workout) => (w.heat ? heatSlowdown(w.heat.tempC, w.heat.dewC) : 0)

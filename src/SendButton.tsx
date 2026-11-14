@@ -58,7 +58,7 @@ export function SendButton({ withRemove = false }: { withRemove?: boolean }) {
           </button>
         )}
       </div>
-      <p className={`send-status ${failed ? 'error' : 'muted'}`} role={failed ? 'alert' : 'status'}>
+      <p className={`status-line ${failed ? 'error' : 'muted'}`} role={failed ? 'alert' : 'status'}>
         {busy ? 'Working…' : msg?.text}
       </p>
     </div>

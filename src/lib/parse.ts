@@ -87,12 +87,12 @@ function parseTarget(s: string): Target {
     const b = parseClock(m[2] ?? m[1])!
     return { t: 'pace', lo: Math.min(a, b), hi: Math.max(a, b) }
   }
-  throw new Error(`Can't read the pace "${s.trim()}". Use easy, MP, a percentage like 95-100% or 90% 5k, or a pace like 4:30-4:40.`)
+  throw new Error(`Can’t read the pace “${s.trim()}”. Use easy, MP, a percentage like 95-100% or 90% 5k, or a pace like 4:30-4:40.`)
 }
 
 function parseStep(s: string, fallback: Target): Step {
   const m = s.match(/^(\d+(?:\.\d+)?)\s*(km|k|min|m|sec|s)\s*(?:@\s*(.+))?$/i)
-  if (!m) throw new Error(`Can't read the step "${s}". Write a distance or time, then an optional pace, like 1k @95%.`)
+  if (!m) throw new Error(`Can’t read the step “${s}”. Write a distance or time, then an optional pace, like 1k @95%.`)
   const n = Number(m[1])
   const unit = m[2].toLowerCase()
   const target = m[3] ? parseTarget(m[3]) : fallback
@@ -113,10 +113,10 @@ export function parseItem(src: string): Item | null {
   }
 
   const head = text.match(/^(easy|long|workout|race)\b\s*(?:"([^"]*)"\s*:?)?\s*(.*)$/i)
-  if (!head) throw new Error(`"${text}" should start with Rest, Easy, Long, Workout, Race or Strength.`)
+  if (!head) throw new Error(`“${text}” should start with Rest, Easy, Long, Workout, Race or Strength.`)
   const def = KINDS[head[1].toLowerCase()]
   const parts = splitTop(head[3], ',')
-  if (!parts.length) throw new Error(`"${text}" needs a distance or time, like ${head[1]} 10k.`)
+  if (!parts.length) throw new Error(`“${text}” needs a distance or time, like ${head[1]} 10k.`)
 
   const blocks = parts.map((part): Block => {
     const rep = part.match(/^(\d+)\s*x\s*\((.*)\)$/i)
@@ -145,11 +145,11 @@ export function parsePlan(text: string): { weeks: Item[][][]; errors: PlanError[
     const day = line.match(/^([a-z]{3})[a-z]*\s*:\s*(.*)$/i)
     const di = day ? DAYS.indexOf(day[1].toLowerCase()) : -1
     if (!day || di < 0) {
-      errors.push({ line: i + 1, msg: `"${line}" should be "Week 1" or a day like "Mon: Easy 10k".` })
+      errors.push({ line: i + 1, msg: `“${line}” should be “Week 1” or a day like “Mon: Easy 10k”.` })
       return
     }
     if (!weeks.length) {
-      errors.push({ line: i + 1, msg: 'Start with a "Week 1" line before the first day.' })
+      errors.push({ line: i + 1, msg: 'Start with a “Week 1” line before the first day.' })
       return
     }
     try {

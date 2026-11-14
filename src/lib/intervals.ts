@@ -48,7 +48,7 @@ async function call(key: string, path: string, init: RequestInit = {}, base = AP
       headers: { Authorization: `Basic ${btoa(`API_KEY:${key}`)}`, 'Content-Type': 'application/json' },
     })
   } catch {
-    throw new Error("Couldn't reach intervals.icu. Check your connection and try again.")
+    throw new Error("Couldn’t reach intervals.icu. Check your connection and try again.")
   }
   if (res.status === 401 || res.status === 403) throw new Error('intervals.icu rejected the API key. Check it in Setup.')
   return res
@@ -76,7 +76,7 @@ export async function sendToIntervals(): Promise<string> {
       external_id: w.id, // lets a re-send update the same calendar entry instead of adding a copy
     }))
     const res = await call(key, '/events/bulk?upsert=true', { method: 'POST', body: JSON.stringify(body) })
-    if (!res.ok) throw new Error(`intervals.icu couldn't save the workouts (error ${res.status}). ${(await res.text()).slice(0, 200)}`)
+    if (!res.ok) throw new Error(`intervals.icu couldn’t save the workouts (error ${res.status}). ${(await res.text()).slice(0, 200)}`)
     const saved: unknown = await res.json().catch(() => null)
     if (Array.isArray(saved)) for (const e of saved) if (e?.external_id && typeof e.id === 'number') next[e.external_id] = e.id
   }
@@ -112,7 +112,7 @@ export async function removeSent(): Promise<string> {
   }
   useStore.setState({ pushed: left })
   const failed = Object.keys(left).length
-  if (failed) throw new Error(`Removed ${removed}, but ${failed} couldn't be removed. Try again, or delete them in the intervals.icu calendar.`)
+  if (failed) throw new Error(`Removed ${removed}, but ${failed} couldn’t be removed. Try again, or delete them in the intervals.icu calendar.`)
   return removed ? `Removed ${removed} ${removed === 1 ? 'run' : 'runs'} from intervals.icu.` : 'Nothing to remove: no runs from this app are in intervals.icu.'
 }
 
@@ -167,7 +167,7 @@ export async function fetchCompleted(): Promise<string> {
   if (!open.length) return `Nothing to fetch: every run planned in the last ${DAYS_BACK} days is already logged.`
 
   const res = await call(key, `/activities?oldest=${from}&newest=${to}T23:59:59`)
-  if (!res.ok) throw new Error(`intervals.icu couldn't list your activities (error ${res.status}).`)
+  if (!res.ok) throw new Error(`intervals.icu couldn’t list your activities (error ${res.status}).`)
   const all: IcuActivity[] = await res.json()
   const runs = all.filter((a) => /run/i.test(a.type ?? '') && (a.distance ?? 0) > 0)
   const fromStrava = all.filter((a) => a.source === 'STRAVA' && !a.distance).length
@@ -193,7 +193,7 @@ export async function fetchCompleted(): Promise<string> {
 
   const logged = matched.size ? `Logged ${matched.size} ${matched.size === 1 ? 'run' : 'runs'} from intervals.icu.` : `No new runs found in intervals.icu for the last ${DAYS_BACK} days.`
   const hidden = fromStrava
-    ? ` ${fromStrava} ${fromStrava === 1 ? 'activity reached' : 'activities reached'} intervals.icu through Strava, which doesn't let other apps read them. Log those by hand.`
+    ? ` ${fromStrava} ${fromStrava === 1 ? 'activity reached' : 'activities reached'} intervals.icu through Strava, which doesn’t let other apps read them. Log those by hand.`
     : ''
   return logged + hidden
 }

@@ -76,7 +76,7 @@ describe('plan text', () => {
 
   it('explains what is wrong', () => {
     expect(() => parseItem('Jog 5k')).toThrow(/should start with/)
-    expect(() => parseItem('Easy 10k @fast')).toThrow(/Can't read the pace/)
+    expect(() => parseItem('Easy 10k @fast')).toThrow(/Can’t read the pace/)
     const { errors } = parsePlan('Mon: Easy 5k\nWeek 1\nTue: Easy ten')
     expect(errors.map((e) => e.line)).toEqual([1, 3])
   })
@@ -192,6 +192,8 @@ describe('fields', () => {
     expect(parseNumber('25')).toBe(25)
     expect(parseNumber('25.')).toBe(25)
     expect(parseNumber('25.2')).toBe(25.2)
+    expect(parseNumber('25,2')).toBe(25.2)
+    expect(parseNumber('1,000.5')).toBeNull()
     expect(parseNumber('-0.13')).toBe(-0.13)
     expect(parseNumber('')).toBeNull()
     expect(parseNumber('-')).toBeNull()

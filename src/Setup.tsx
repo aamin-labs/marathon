@@ -36,7 +36,7 @@ export function Setup() {
   const locate = () => {
     navigator.geolocation.getCurrentPosition(
       (pos) => setSettings({ lat: Number(pos.coords.latitude.toFixed(3)), lon: Number(pos.coords.longitude.toFixed(3)) }),
-      () => setLocMsg("Couldn't get your location. Allow location access in the browser, or type the coordinates."),
+      () => setLocMsg("Couldn’t get your location. Allow location access in the browser, or type the coordinates."),
     )
   }
 
@@ -57,7 +57,7 @@ export function Setup() {
       withUndo('Backup restored', () => replaceAll(data))
       setBackupMsg('Backup restored.')
     } catch {
-      setBackupMsg("That file isn't a backup from this app.")
+      setBackupMsg("That file isn’t a backup from this app.")
     }
   }
 
@@ -78,13 +78,14 @@ export function Setup() {
             Race day
             <DateField value={settings.raceDate} onSave={(raceDate) => setSettings({ raceDate })} />
           </label>
+          {/* Clock times and anything that can go below zero use the full keyboard: the phone's number pads have no colon and no minus. */}
           <label>
             Goal time
-            <input inputMode="numeric" value={settings.goalTime} onChange={(e) => setSettings({ goalTime: e.target.value })} aria-invalid={!goalOk} />
+            <input inputMode="text" value={settings.goalTime} onChange={(e) => setSettings({ goalTime: e.target.value })} aria-invalid={!goalOk} />
           </label>
           <label className="wide">
             Current 5K time
-            <input inputMode="numeric" placeholder="22:30" value={settings.fiveK ?? ''} onChange={(e) => setSettings({ fiveK: e.target.value })} aria-invalid={!fiveKOk} />
+            <input inputMode="text" placeholder="22:30" value={settings.fiveK ?? ''} onChange={(e) => setSettings({ fiveK: e.target.value })} aria-invalid={!fiveKOk} />
           </label>
           <label>
             Easy from, % of marathon pace
@@ -104,7 +105,7 @@ export function Setup() {
           <p className="error">Enter the goal time as 3:30:00.</p>
         )}
         {!fiveKOk && <p className="error">Enter the 5K time as 22:30.</p>}
-        <p className="muted">Changing race day doesn't move workouts until you rebuild the schedule below.</p>
+        <p className="muted">Changing race day doesn’t move workouts until you rebuild the schedule below.</p>
       </section>
 
       <section className="card">
@@ -123,8 +124,9 @@ export function Setup() {
             ))}
           </ul>
         )}
-        {msg && <p aria-live="polite">{msg}</p>}
-        <p className="muted">Building replaces every workout you haven't logged, including ones you moved. Logged workouts are kept.</p>
+        {/* Always on the page, one line tall: screen readers announce text arriving in a region they already know, and the button below doesn't move. */}
+        <p className="status-line" aria-live="polite">{msg}</p>
+        <p className="muted">Building replaces every workout you haven’t logged, including ones you moved. Logged workouts are kept.</p>
         <button className="btn primary" onClick={build}>
           Build schedule from this plan
         </button>
@@ -143,7 +145,7 @@ export function Setup() {
         <SendButton withRemove />
         <p className="muted">
           Send again after moving a workout or setting the heat, so the watch gets the change. “Fetch completed runs” logs the runs intervals.icu has recorded on the days
-          you planned them; runs that reach intervals.icu through Strava can't be read. “Remove sent runs” takes this app's runs back out of intervals.icu; your plan here is
+          you planned them; runs that reach intervals.icu through Strava can’t be read. “Remove sent runs” takes this app’s runs back out of intervals.icu; your plan here is
           untouched.
         </p>
       </section>
@@ -164,11 +166,11 @@ export function Setup() {
         <div className="fields">
           <label>
             Latitude
-            <NumberField value={settings.lat} min={-90} max={90} allowEmpty onSave={(lat) => setSettings({ lat })} />
+            <NumberField value={settings.lat} min={-90} max={90} allowEmpty inputMode="text" onSave={(lat) => setSettings({ lat })} />
           </label>
           <label>
             Longitude
-            <NumberField value={settings.lon} min={-180} max={180} allowEmpty onSave={(lon) => setSettings({ lon })} />
+            <NumberField value={settings.lon} min={-180} max={180} allowEmpty inputMode="text" onSave={(lon) => setSettings({ lon })} />
           </label>
           <label>
             Usual run hour, 0–23
@@ -213,7 +215,7 @@ export function Setup() {
             }}
           />
         </div>
-        {backupMsg && <p aria-live="polite">{backupMsg}</p>}
+        <p className="status-line" aria-live="polite">{backupMsg}</p>
       </section>
     </>
   )

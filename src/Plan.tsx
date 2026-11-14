@@ -1,4 +1,5 @@
 import { DndContext, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { Check, Plus } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { addDays, fmtDate, mondayOf, today } from './lib/dates'
 import { fmtKm } from './lib/pace'
@@ -21,12 +22,8 @@ function Chip({ w, km, maxKm, onOpen }: { w: Workout; km: number; maxKm: number;
       onClick={onOpen}
     >
       <span className="chip-title">
-        {w.done && (
-          <>
-            <span aria-hidden="true">✓ </span>
-            <span className="sr-only">Done: </span>
-          </>
-        )}
+        {w.done ? <Check className="chip-mark" size={13} strokeWidth={2.5} aria-hidden="true" /> : <span className="chip-mark dot" />}
+        {w.done && <span className="sr-only">Done: </span>}
         {w.title}
       </span>
       {w.kind !== 'strength' && <span className="chip-km">{fmtKm(km)} km</span>}
@@ -45,13 +42,13 @@ function Day({ date, isToday, children, onAdd }: { date: string; isToday: boolea
       </div>
       <div className="day-items">{children}</div>
       <button className="day-add" onClick={onAdd} aria-label={`Add a workout on ${fmtDate(date, { weekday: 'long', day: 'numeric', month: 'long' })}`}>
-        +
+        <Plus size={15} strokeWidth={1.75} aria-hidden="true" />
       </button>
     </div>
   )
 }
 
-export function Plan({ onOpen }: { onOpen: (id: string) => void }) {
+export function Plan({ onOpen }: { onOpen: (id: string, edit?: boolean) => void }) {
   const workouts = useStore((s) => s.workouts)
   const settings = useStore((s) => s.settings)
   const updateWorkout = useStore((s) => s.updateWorkout)
@@ -130,7 +127,7 @@ export function Plan({ onOpen }: { onOpen: (id: string) => void }) {
               </header>
               <div className="week-days">
                 {days.map((date) => (
-                  <Day key={date} date={date} isToday={date === now} onAdd={() => onOpen(addWorkout(date, parseItem('Easy 8k')!))}>
+                  <Day key={date} date={date} isToday={date === now} onAdd={() => onOpen(addWorkout(date, parseItem('Easy 8k')!), true)}>
                     {inWeek
                       .filter((w) => w.date === date)
                       .map((w) => (

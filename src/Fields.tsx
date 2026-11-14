@@ -12,7 +12,7 @@ export function NumberField({
   allowEmpty = false,
   inputMode = 'decimal',
   ...limits
-}: { value: number | null; onSave: (n: number | null) => void; allowEmpty?: boolean; inputMode?: 'decimal' | 'numeric' } & NumberLimits) {
+}: { value: number | null; onSave: (n: number | null) => void; allowEmpty?: boolean; inputMode?: 'decimal' | 'numeric' | 'text' } & NumberLimits) {
   const toText = (n: number | null) => (n == null ? '' : String(n))
   const [text, setText] = useState(toText(value))
   const [lastValue, setLastValue] = useState(value)
