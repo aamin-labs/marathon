@@ -284,6 +284,8 @@ svg { flex: none; }
 .btn.primary { background: var(--accent); border-color: transparent; color: var(--on-accent); }
 .btn.primary:disabled { background: var(--raised); border-color: var(--line); color: var(--faint); }
 .btn.danger { color: var(--danger); }
+/* A text-weight button for a secondary action that sits in a line of text. */
+.btn.quiet { border-color: transparent; background: none; color: var(--accent-ink); font-weight: 600; padding: 0 0.375rem; }
 .btn.close { border-color: transparent; background: none; color: var(--muted); padding: 0; width: var(--control); flex: none; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 /* Buttons are as wide as their label, not the card. */
@@ -314,6 +316,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 textarea { padding: 0.5rem 0.625rem; resize: vertical; line-height: 1.55; }
 .plan-text { font-family: var(--mono); font-size: 0.8125rem; white-space: pre; overflow-x: auto; }
 input[aria-invalid='true'] { border-color: var(--danger); }
+/* A unit shown inside its field, at the right-hand end. It sits on top of the field and lets clicks through, so the whole box still takes the click. */
+.affix { position: relative; display: block; }
+.affix > span { position: absolute; right: 0.625rem; top: 50%; translate: 0 -50%; pointer-events: none; font-weight: 400; }
+.affix > input { padding-right: 2.25rem; }
+/* A tick box and its label as one row: the box, the word and the gap between them all take the click. */
+.check { display: flex; align-items: center; gap: 0.5rem; min-height: var(--control); font-size: 0.9375rem; font-weight: 600; color: var(--ink); cursor: pointer; }
+.check input { width: 1.125rem; height: 1.125rem; min-height: 0; padding: 0; margin: 0; flex: none; accent-color: var(--accent); cursor: pointer; }
+.check input:focus-visible { outline-offset: 2px; }
 /* On touch screens, 16px field text stops iOS zooming the page when a field is focused. */
 @media (pointer: coarse) {
   input, select, textarea, .plan-text { font-size: 1rem; }
@@ -436,7 +446,7 @@ input[aria-invalid='true'] { border-color: var(--danger); }
   .btn:hover:not(:disabled) { background: color-mix(in oklch, var(--ink) 8%, var(--raised)); }
   .btn.primary:hover:not(:disabled) { background: color-mix(in oklch, var(--accent) 88%, var(--ink)); }
   .btn.danger:hover:not(:disabled) { background: color-mix(in oklch, var(--danger) 14%, var(--raised)); }
-  .btn.close:hover:not(:disabled), .toast .btn:hover:not(:disabled) { background: color-mix(in oklch, var(--ink) 10%, transparent); color: var(--ink); }
+  .btn.close:hover:not(:disabled), .btn.quiet:hover:not(:disabled), .toast .btn:hover:not(:disabled) { background: color-mix(in oklch, var(--ink) 10%, transparent); color: var(--ink); }
   .nav-item:hover { color: var(--ink); }
   .row-btn:hover { background: var(--raised); }
   .chip:hover { box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--k) 55%, transparent); }
@@ -504,11 +514,19 @@ input[aria-invalid='true'] { border-color: var(--danger); }
 details.sheet-section:not([open]) { display: block; }
 details.sheet-section { padding-top: 0.25rem; }
 summary { cursor: pointer; font-size: 0.8125rem; font-weight: 600; padding: calc((var(--control) - 1.25rem) / 2 + 0.125rem) 0; }
-.result { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; }
-/* Only right after logging a run: the numbers arrive one after another. Opening an already-logged workout shows them at rest. */
-.result.fresh > * { --rise: 8px; animation: rise 240ms var(--ease-out) backwards; }
-.result.fresh > :nth-child(2) { animation-delay: 50ms; }
-.result.fresh > :nth-child(3) { animation-delay: 100ms; }
+/* The weather line under the steps: text to read, with the way to correct it tucked at the end of the line. */
+.conditions { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem 0.75rem; align-items: center; }
+.conditions .fields { grid-column: 1 / -1; }
+/* The result: the one part of the sheet that is the runner's to fill in. Everything above it is the plan, shown as text; the tinted panel and the field edges mark where typing happens. */
+.result { display: grid; gap: 0.5rem; padding: 0.875rem 1rem 1rem; border-radius: var(--radius); background: var(--raised); transition: background-color 120ms ease; }
+/* Once done it takes a wash of the workout kind's colour, like a done workout on the calendar. */
+.result.done { background: var(--wash); }
+.result-details { display: grid; gap: 0.75rem; }
+/* An error under one field must not push its neighbour down the row. */
+.result .fields { align-items: start; }
+/* Only right after ticking "Done": the details rise into place. Opening a workout that is already done shows them at rest. */
+.result-details.fresh { --rise: 8px; animation: rise 240ms var(--ease-out); }
+.result-nums { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 1rem; }
 
 /* Undo message. */
 .toast {
@@ -536,10 +554,10 @@ summary { cursor: pointer; font-size: 0.8125rem; font-weight: 600; padding: calc
 @media (min-width: 900px) { .toast { bottom: 1.5rem; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .sheet, .sheet::backdrop, .toast, .result.fresh > * { animation: none; }
+  .sheet, .sheet::backdrop, .toast, .result-details.fresh { animation: none; }
   /* With no exit animation to wait for, a leaving message just goes. */
   .toast.leaving { display: none; }
-  .btn, .chip, .day, .day-add, .nav-item, .row-btn, .meter i, input, select, textarea { transition: none; }
+  .btn, .chip, .day, .day-add, .nav-item, .row-btn, .meter i, .result, input, select, textarea { transition: none; }
   .chip.dragging { scale: none; }
   .btn:active, .day-add:active { transform: none; }
 }

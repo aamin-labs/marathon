@@ -1,4 +1,12 @@
+import { daysBetween, today } from './dates'
+
 // Forecast from Open-Meteo: free, no account or key needed.
+
+/** Whether a forecast exists for that day: from today to two weeks ahead. */
+export function canForecast(date: string, now = today()): boolean {
+  const days = daysBetween(now, date)
+  return days >= 0 && days <= 14
+}
 
 export async function fetchConditions(lat: number, lon: number, date: string, hour: number): Promise<{ tempC: number; dewC: number }> {
   const url =

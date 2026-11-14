@@ -16,7 +16,7 @@ Other commands: `npm test` checks the pace maths and plan reader; `npm run build
 
 - `src/lib/parse.ts` reads the plan text (the format is described at the top of the file and on the Setup screen).
 - `src/lib/pace.ts` turns a goal time into paces and applies the heat adjustment.
-- `src/lib/store.ts` holds all data and saves it in the browser (`localStorage`). Nothing is sent anywhere.
+- `src/lib/store.ts` holds all data and saves it in the browser (`localStorage`). Nothing leaves it except what the features below need: your location goes to Open-Meteo for the forecast, and workouts go to intervals.icu if you connect it.
 - `src/Today.tsx`, `Plan.tsx`, `Shoes.tsx`, `Setup.tsx` are the four screens; `Sheet.tsx` is the workout detail panel.
 
 Data lives only in the browser you use, at this exact address. Use Setup → Backup before clearing browser data.

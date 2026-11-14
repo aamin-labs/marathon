@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import { addDays, fmtCountdown, isPlausibleDate, mondayOf, today } from './dates'
 import { fetchCompleted, icuDescription, matchRuns } from './intervals'
-import { fmtClock, heatSlowdown, mpPace, parseClock, targetPaces, verdict } from './pace'
+import { fmtClock, heatSlowdown, mpPace, parseClock, parseRunTime, targetPaces, verdict } from './pace'
 import { parseNumber } from './number'
 import { parseItem, parsePlan } from './parse'
 import { plannedKm, schedule, useStore } from './store'
 import { samplePlan } from './samplePlan'
 import { undo, useUndo, withUndo } from './undo'
+import { canForecast } from './weather'
 import breeze80 from '../../marathon-plans/breeze-80.txt?raw'
 
 const S = { goalTime: '3:30:00', easyLo: 70, easyHi: 80 }
@@ -215,6 +216,37 @@ describe('fields', () => {
     expect(isPlausibleDate('0202-03-14', now)).toBe(false)
     expect(isPlausibleDate('2100-03-14', now)).toBe(false)
     expect(isPlausibleDate('', now)).toBe(false)
+  })
+})
+
+describe('the result of a run', () => {
+  it('reads the time a run took, and takes an empty field as no time', () => {
+    expect(parseRunTime('52:30')).toBe(3150)
+    expect(parseRunTime('1:45:00')).toBe(6300)
+    expect(parseRunTime('')).toBe(0)
+    expect(parseRunTime('  ')).toBe(0)
+  })
+
+  it('rejects a time with no colon: "5230" is a slip, not seconds', () => {
+    expect(parseRunTime('5230')).toBeNull()
+    expect(parseRunTime('52:')).toBeNull()
+    expect(parseRunTime('abc')).toBeNull()
+  })
+
+  it('rejects minutes or seconds past 59', () => {
+    expect(parseRunTime('52:75')).toBeNull()
+    expect(parseRunTime('1:75:00')).toBeNull()
+    expect(parseRunTime('75:00')).toBe(4500)
+  })
+})
+
+describe('forecast', () => {
+  it('reaches from today to two weeks ahead', () => {
+    const now = '2026-11-14'
+    expect(canForecast('2026-11-14', now)).toBe(true)
+    expect(canForecast('2026-11-28', now)).toBe(true)
+    expect(canForecast('2026-11-29', now)).toBe(false)
+    expect(canForecast('2026-11-13', now)).toBe(false)
   })
 })
 

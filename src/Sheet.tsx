@@ -1,24 +1,36 @@
 import { X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { DateField } from './Fields'
-import { fmtDate } from './lib/dates'
+import { fmtDate, today } from './lib/dates'
 import { parseNumber } from './lib/number'
-import { fmtClock, fmtKm, parseClock, targetPaces, verdict } from './lib/pace'
+import { fmtClock, fmtKm, heatSlowdown, parseRunTime, targetPaces, verdict } from './lib/pace'
 import { parseItem, type Step } from './lib/parse'
 import { plannedKm, useStore, type Lap, type Workout } from './lib/store'
-import { withUndo } from './lib/undo'
-import { fetchConditions } from './lib/weather'
+import { useUndo, withUndo } from './lib/undo'
+import { canForecast, fetchConditions } from './lib/weather'
 import { heatOf, KindTag, Steps } from './Steps'
 
-function Heat({ w }: { w: Workout }) {
+/** The weather the paces are adjusted for. It fetches the forecast by itself; the two fields are only there to correct it. */
+function Conditions({ w }: { w: Workout }) {
   const settings = useStore((s) => s.settings)
   const updateWorkout = useStore((s) => s.updateWorkout)
   const [temp, setTemp] = useState(w.heat ? String(w.heat.tempC) : '')
   const [dew, setDew] = useState(w.heat ? String(w.heat.dewC) : '')
-  const [msg, setMsg] = useState('')
+  const [editing, setEditing] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [failed, setFailed] = useState(false)
+  // The watch has this workout at the old paces, and a new forecast has just moved them.
+  const [resend, setResend] = useState(false)
+  // Set once the runner types conditions in this sheet: from then on a forecast still on its way must not replace them.
+  const typed = useRef(false)
+  const lineId = useId()
   const heat = heatOf(w)
+  const { lat, lon } = settings
+  const hasPlace = lat != null && lon != null
+  const forecastable = !w.done && hasPlace && canForecast(w.date)
 
   const apply = (t: string, d: string) => {
+    typed.current = true
     setTemp(t)
     setDew(d)
     const tempC = parseNumber(t)
@@ -26,40 +38,96 @@ function Heat({ w }: { w: Workout }) {
     updateWorkout(w.id, { heat: tempC != null && dewC != null ? { tempC, dewC } : undefined })
   }
 
-  const forecast = async () => {
-    if (settings.lat == null || settings.lon == null) return setMsg('Set your location in Setup to get a forecast.')
-    setMsg('Getting the forecast…')
+  /** `wanted` turns false once the answer is no longer needed: the sheet has moved on, or conditions were typed meanwhile. */
+  const forecast = async (wanted: () => boolean = () => true) => {
+    if (lat == null || lon == null || loading) return
+    setLoading(true)
+    setFailed(false)
     try {
-      const c = await fetchConditions(settings.lat, settings.lon, w.date, settings.runHour)
-      apply(String(c.tempC), String(c.dewC))
-      setMsg(`Forecast for ${settings.runHour}:00`)
-    } catch (e) {
-      setMsg((e as Error).message)
+      const c = await fetchConditions(lat, lon, w.date, settings.runHour)
+      if (wanted()) {
+        setTemp(String(c.tempC))
+        setDew(String(c.dewC))
+        const { workouts, pushed } = useStore.getState()
+        const saved = workouts.find((x) => x.id === w.id)?.heat
+        if (!saved?.auto || saved.tempC !== c.tempC || saved.dewC !== c.dewC) {
+          // Saving the forecast is not the runner's doing, so it must not withdraw an "Undo" that is still on offer.
+          const { pending } = useUndo.getState()
+          updateWorkout(w.id, { heat: { ...c, auto: true } })
+          useUndo.setState({ pending })
+          const before = saved ? heatSlowdown(saved.tempC, saved.dewC) : 0
+          if (w.id in pushed && heatSlowdown(c.tempC, c.dewC) !== before) setResend(true)
+        }
+      }
+    } catch {
+      if (wanted()) setFailed(true)
     }
+    setLoading(false)
   }
 
+  // On opening, get the forecast, or a newer one: it sharpens as the day gets closer. Conditions entered by hand are left alone.
+  // Moving the workout to another day asks again, and drops a forecast that belonged to the old day.
+  useEffect(() => {
+    if (w.done || (w.heat && !w.heat.auto)) return
+    if (!forecastable) {
+      if (w.heat && w.date > today()) updateWorkout(w.id, { heat: undefined })
+      return
+    }
+    let open = true
+    forecast(() => open && !typed.current)
+    return () => {
+      open = false
+    }
+  }, [w.id, w.date])
+
+  let line = ''
+  if (w.heat) {
+    line = `${w.heat.auto ? `Forecast for ${settings.runHour}:00: ` : ''}${w.heat.tempC}° · dew point ${w.heat.dewC}° · ${heat > 0 ? `paces slowed ${heat.toFixed(1)}%` : 'no change to paces'}`
+    if (resend) line += '. Send it to the watch again for the new paces.'
+  } else if (loading) line = 'Getting the forecast…'
+  else if (failed) line = 'Couldn’t get the forecast.'
+  else if (!hasPlace) line = 'Set your location in Setup and the paces adjust for the forecast by themselves.'
+  else if (!forecastable) line = w.date < today() ? 'No forecast for a day that has passed.' : 'The forecast reaches two weeks ahead. Paces adjust for the heat nearer the day.'
+  else line = 'Paces are not adjusted for the heat.'
+
+  // A done workout keeps the conditions it was run in, if there were any, and nothing can be changed.
+  if (w.done) return w.heat ? <p className="muted">{line}</p> : null
+
   return (
-    <section className="sheet-section">
-      <h3>Heat</h3>
-      <div className="fields">
-        {/* The full keyboard, not the number pad: the phone's number pad has no minus, and dew points go below zero. */}
-        <label>
-          Temperature °C
-          <input inputMode="text" value={temp} onChange={(e) => apply(e.target.value, dew)} />
-        </label>
-        <label>
-          Dew point °C
-          <input inputMode="text" value={dew} onChange={(e) => apply(temp, e.target.value)} />
-        </label>
-        <button className="btn" onClick={forecast}>
-          Use forecast
-        </button>
-      </div>
-      <p className="muted" aria-live="polite">
-        {w.heat ? (heat > 0 ? `Paces above are slowed ${heat.toFixed(1)}%.` : 'Cool enough: no change to paces.') : 'Enter the conditions to adjust the paces.'}
-        {msg && ` ${msg}`}
+    <div className="conditions">
+      <p className="muted" id={lineId} aria-live="polite">
+        {line}
       </p>
-    </section>
+      {/* The same words open or shut: aria-expanded says which, and the line beside it says what is being changed. */}
+      <button className="btn quiet" aria-expanded={editing} aria-describedby={lineId} onClick={() => setEditing(!editing)}>
+        {w.heat ? 'Change' : 'Enter by hand'}
+      </button>
+      {editing && (
+        <div className="fields">
+          {/* The full keyboard, not the number pad: the phone's number pad has no minus, and dew points go below zero. */}
+          <label>
+            Temperature
+            <span className="affix">
+              <input inputMode="text" autoComplete="off" value={temp} onChange={(e) => apply(e.target.value, dew)} />
+              <span>°C</span>
+            </span>
+          </label>
+          <label>
+            Dew point
+            <span className="affix">
+              <input inputMode="text" autoComplete="off" value={dew} onChange={(e) => apply(temp, e.target.value)} />
+              <span>°C</span>
+            </span>
+          </label>
+          {/* Not disabled while it works, and not taken away after: either would drop keyboard focus. A second press is ignored instead. */}
+          {forecastable && (
+            <button className="btn" aria-disabled={loading} onClick={() => forecast()}>
+              {loading ? 'Getting the forecast…' : 'Use the forecast'}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -99,112 +167,197 @@ function Laps({ w }: { w: Workout }) {
   )
 }
 
-/** `fresh` is true when the workout was logged a moment ago in this sheet, as opposed to opened already done. */
-function Result({ w, fresh, onLogged, onClose }: { w: Workout; fresh: boolean; onLogged: () => void; onClose: (then?: () => void) => void }) {
+/**
+ * A number field in the result that saves itself: every usable value goes straight to the workout, so there is nothing to submit.
+ * It complains late and forgives early: the error appears on leaving the field, then clears on the keystroke that fixes it.
+ * (Unlike NumberField in Fields.tsx, which quietly puts the old value back: here what was typed stays, with the reason it can't be used.)
+ */
+function ResultField({
+  label,
+  unit,
+  error,
+  value,
+  show,
+  parse,
+  onSave,
+  ...input
+}: {
+  label: string
+  unit?: string
+  error: string
+  value: number
+  show: (n: number) => string
+  parse: (text: string) => number | null
+  onSave: (n: number) => void
+} & Pick<React.InputHTMLAttributes<HTMLInputElement>, 'inputMode' | 'placeholder'>) {
+  const [text, setText] = useState(show(value))
+  const [lastValue, setLastValue] = useState(value)
+  const [flagged, setFlagged] = useState(false)
+  // The value when the field was entered: what goes back if it is left with something unusable in it.
+  const onEntry = useRef(value)
+  const errorId = useId()
+  // The value changed from outside the field (a fetched run, an undo): show the new one.
+  if (value !== lastValue) {
+    setLastValue(value)
+    if (parse(text) !== value) {
+      setText(show(value))
+      setFlagged(false)
+    }
+  }
+
+  const field = (
+    <input
+      {...input}
+      autoComplete="off"
+      value={text}
+      aria-invalid={flagged}
+      aria-describedby={flagged ? errorId : undefined}
+      onFocus={() => (onEntry.current = value)}
+      onChange={(e) => {
+        setText(e.target.value)
+        const n = parse(e.target.value)
+        if (n != null) onSave(n)
+        if (flagged) setFlagged(n == null)
+      }}
+      onBlur={() => {
+        if (parse(text) != null) return setFlagged(false)
+        setFlagged(true)
+        // On the way to something unusable, a half-typed value may have been saved: "52:30" passes through "52:3". Put back what was there before.
+        setLastValue(onEntry.current)
+        if (value !== onEntry.current) onSave(onEntry.current)
+      }}
+    />
+  )
+  return (
+    <div className="stack">
+      <label>
+        {label}
+        {unit ? (
+          <span className="affix">
+            {field}
+            <span>{unit}</span>
+          </span>
+        ) : (
+          field
+        )}
+      </label>
+      {flagged && (
+        <span className="error" id={errorId} role="alert">
+          {error}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/** The one part of the sheet that is the runner's to fill in. Ticking "Done" records the workout as planned; the details can be corrected after. */
+function Result({ w }: { w: Workout }) {
   const settings = useStore((s) => s.settings)
   const shoes = useStore((s) => s.shoes)
-  const workouts = useStore((s) => s.workouts)
   const updateWorkout = useStore((s) => s.updateWorkout)
   const isRun = w.kind !== 'strength'
-  // Default to the shoe worn on the most recent logged run.
-  const lastShoe = [...workouts].filter((x) => x.done?.shoeId).sort((a, b) => b.date.localeCompare(a.date))[0]?.done?.shoeId
-  const [km, setKm] = useState(fmtKm(plannedKm(w, settings)))
-  const [time, setTime] = useState('')
-  const [shoeId, setShoeId] = useState(lastShoe ?? '')
-  const [note, setNote] = useState('')
-  const [error, setError] = useState('')
-  // Logging swaps the form for the result, taking the pressed button with it. Keyboard focus moves to the result's heading, or it would be left nowhere.
-  const heading = useRef<HTMLHeadingElement>(null)
-  useEffect(() => {
-    if (fresh) heading.current?.focus()
-  }, [fresh])
+  const done = w.done
+  // True once the box is ticked in this sheet, as opposed to the workout being opened already done.
+  const [fresh, setFresh] = useState(false)
+  // The result as it was before the box was unticked, so ticking it again puts it all back.
+  const unticked = useRef<Workout['done']>(undefined)
 
-  if (w.done) {
-    const pace = w.done.km > 0 && w.done.sec > 0 ? w.done.sec / w.done.km : null
-    // An average-pace verdict only means something for a run at one easy pace.
-    const range = (w.kind === 'easy' || w.kind === 'long') && !w.done.laps ? targetPaces({ t: 'easy' }, settings, heatOf(w)) : null
-    return (
-      <section className="sheet-section">
-        <h3 ref={heading} tabIndex={-1}>
-          Done
-        </h3>
-        {isRun && (
-          <p className={`result${fresh ? ' fresh' : ''}`}>
-            <span className="big-num">{fmtKm(w.done.km)}<small> km</small></span>
-            {w.done.sec > 0 && <span className="big-num">{fmtClock(w.done.sec)}</span>}
-            {pace && <span className="big-num">{fmtClock(pace)}<small> /km</small></span>}
-          </p>
-        )}
-        {pace && range && <p>{verdict(pace, range)} ({fmtClock(range[0])}–{fmtClock(range[1])} /km).</p>}
-        {w.done.laps && <Laps w={w} />}
-        {/* A select, not text: fetched runs get a guessed pair, so it has to be correctable here. */}
-        {isRun && shoes.length > 0 && (
-          <label>
-            Shoes
-            <select value={w.done.shoeId ?? ''} onChange={(e) => updateWorkout(w.id, { done: { ...w.done!, shoeId: e.target.value || undefined } })}>
-              <option value="">None</option>
-              {shoes.filter((s) => !s.retired || s.id === w.done?.shoeId).map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </label>
-        )}
-        {w.done.note && <p>{w.done.note}</p>}
-        {/* This throws away the logged distance, time and note, so it can be undone. The sheet closes first: the undo message sits on the page behind it. */}
-        <button className="btn" onClick={() => onClose(() => withUndo('Marked as not done', () => updateWorkout(w.id, { done: undefined })))}>
-          Mark as not done
-        </button>
-      </section>
-    )
+  const toggle = (checked: boolean) => {
+    if (checked) {
+      // Default to the shoe worn on the most recent done run.
+      const lastShoe = [...useStore.getState().workouts].filter((x) => x.done?.shoeId).sort((a, b) => b.date.localeCompare(a.date))[0]?.done?.shoeId
+      const shoeId = shoes.some((s) => s.id === lastShoe && !s.retired) ? lastShoe : undefined
+      setFresh(true)
+      updateWorkout(w.id, { done: unticked.current ?? (isRun ? { km: Math.round(plannedKm(w, settings) * 10) / 10, sec: 0, shoeId } : { km: 0, sec: 0 }) })
+      unticked.current = undefined
+    } else {
+      unticked.current = done
+      updateWorkout(w.id, { done: undefined })
+    }
   }
+  // Unticking throws away the distance, time and note. While the sheet is open, ticking again puts them back.
+  // The "Undo" message sits on the page behind the sheet, so it is offered as the sheet closes: the result goes back for a moment and is removed again as one undoable change.
+  useEffect(
+    () => () => {
+      const { workouts, updateWorkout } = useStore.getState()
+      const lost = unticked.current
+      if (!lost || !workouts.some((x) => x.id === w.id && !x.done)) return
+      updateWorkout(w.id, { done: lost })
+      withUndo('Marked as not done', () => updateWorkout(w.id, { done: undefined }))
+    },
+    [w.id],
+  )
+  const save = (patch: Partial<NonNullable<Workout['done']>>) => done && updateWorkout(w.id, { done: { ...done, ...patch } })
 
-  const save = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (isRun) {
-      const dist = parseNumber(km)
-      const sec = time.trim() ? parseClock(time) : 0
-      if (dist == null || dist <= 0) return setError('Enter the distance in km, like 10.2.')
-      // A time with no colon is a slip, not seconds: "5230" would otherwise be logged as 1:27:10.
-      if (sec == null || (sec > 0 && !time.includes(':'))) return setError('Enter the time as 52:30 or 1:45:00.')
-      updateWorkout(w.id, { done: { km: dist, sec, shoeId: shoeId || undefined, note: note || undefined } })
-    } else updateWorkout(w.id, { done: { km: 0, sec: 0, note: note || undefined } })
-    onLogged()
-  }
+  const pace = done && done.km > 0 && done.sec > 0 ? done.sec / done.km : null
+  // An average-pace verdict only means something for a run at one easy pace.
+  const range = done && (w.kind === 'easy' || w.kind === 'long') && !done.laps ? targetPaces({ t: 'easy' }, settings, heatOf(w)) : null
 
   return (
-    <form className="sheet-section" onSubmit={save}>
-      <h3>Log it</h3>
-      <div className="fields">
-        {isRun && (
-          <>
-            <label>
-              Distance km
-              <input inputMode="decimal" value={km} onChange={(e) => setKm(e.target.value)} />
-            </label>
-            <label>
-              Time
-              <input inputMode="text" placeholder="52:30" value={time} onChange={(e) => setTime(e.target.value)} />
-            </label>
-            {shoes.some((s) => !s.retired) && (
+    // A form so the fields behave like one; there is nothing to submit, because each field saves itself.
+    <form className={`result${done ? ' done' : ''}`} onSubmit={(e) => e.preventDefault()}>
+      <h3>How it went</h3>
+      <label className="check">
+        <input type="checkbox" checked={!!done} onChange={(e) => toggle(e.target.checked)} />
+        Done
+      </label>
+      {done && (
+        <div className={`result-details${fresh ? ' fresh' : ''}`}>
+          {isRun && (pace || done.laps) && (
+            <p className="result-nums">
+              {/* A fetched run's distance and time are the watch's, shown as text: typing over them would leave its laps not adding up. */}
+              {done.laps && <span className="big-num">{fmtKm(done.km)}<small> km</small></span>}
+              {done.laps && done.sec > 0 && <span className="big-num">{fmtClock(done.sec)}</span>}
+              {pace && <span className="big-num">{fmtClock(pace)}<small> /km</small></span>}
+              {pace && range && <span>{verdict(pace, range)} ({fmtClock(range[0])}–{fmtClock(range[1])} /km).</span>}
+            </p>
+          )}
+          {done.laps && <Laps w={w} />}
+          <div className="fields">
+            {isRun && !done.laps && (
+              <>
+                <ResultField
+                  label="Distance"
+                  unit="km"
+                  inputMode="decimal"
+                  error="Enter the distance in km, like 10.2."
+                  value={done.km}
+                  show={fmtKm}
+                  parse={(t) => parseNumber(t, { min: 0 }) || null}
+                  onSave={(km) => save({ km })}
+                />
+                {/* The full keyboard: the number pad has no colon. */}
+                <ResultField
+                  label="Time (mm:ss)"
+                  inputMode="text"
+                  placeholder="52:30"
+                  error="Enter the time as 52:30, or 1:45:00 with hours."
+                  value={done.sec}
+                  show={(sec) => (sec > 0 ? fmtClock(sec) : '')}
+                  parse={parseRunTime}
+                  onSave={(sec) => save({ sec })}
+                />
+              </>
+            )}
+            {/* A select, not text: fetched runs get a guessed pair, so it has to be correctable here. */}
+            {isRun && shoes.some((s) => !s.retired || s.id === done.shoeId) && (
               <label>
                 Shoes
-                <select value={shoeId} onChange={(e) => setShoeId(e.target.value)}>
+                <select value={done.shoeId ?? ''} onChange={(e) => save({ shoeId: e.target.value || undefined })}>
                   <option value="">None</option>
-                  {shoes.filter((s) => !s.retired).map((s) => (
+                  {shoes.filter((s) => !s.retired || s.id === done.shoeId).map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
               </label>
             )}
-          </>
-        )}
-        <label className="wide">
-          Note
-          <input value={note} onChange={(e) => setNote(e.target.value)} />
-        </label>
-      </div>
-      <p className="error status-line" role="alert">{error}</p>
-      <button className="btn primary">Mark as done</button>
+            <label className="wide">
+              Note
+              <input autoComplete="off" value={done.note ?? ''} onChange={(e) => save({ note: e.target.value || undefined })} />
+            </label>
+          </div>
+        </div>
+      )}
     </form>
   )
 }
@@ -291,9 +444,6 @@ export function Sheet({ id, startEditing = false, onClose }: { id: string; start
 
   const ref = useRef<HTMLDialogElement>(null)
   const pressedBackdrop = useRef(false)
-  const [logged, setLogged] = useState(false)
-  // Something to do once the sheet has finished closing.
-  const afterClose = useRef<(() => void) | undefined>(undefined)
 
   // showModal is what makes it a real modal: focus moves in and stays in, Escape closes it, the page behind can't be reached.
   useEffect(() => {
@@ -312,11 +462,10 @@ export function Sheet({ id, startEditing = false, onClose }: { id: string; start
 
   // Closing through the dialog itself, not just unmounting it, is what sends focus back to the button that opened it.
   // (Removing the workout skips this and unmounts directly: the chip that opened the sheet is gone too.)
-  // It first plays its exit (see [data-closing] in the stylesheet), then closes for real, then runs `then` if there is one.
-  const close = (then?: () => void) => {
+  // It first plays its exit (see [data-closing] in the stylesheet), then closes for real.
+  const close = () => {
     const dialog = ref.current
     if (!dialog) return
-    if (then) afterClose.current = then
     if ('closing' in dialog.dataset || matchMedia('(prefers-reduced-motion: reduce)').matches) return dialog.close()
     dialog.dataset.closing = ''
     dialog.addEventListener('animationend', (e) => e.target === dialog && dialog.close())
@@ -332,10 +481,7 @@ export function Sheet({ id, startEditing = false, onClose }: { id: string; start
       ref={ref}
       className={`sheet k-${w.kind}`}
       aria-label={w.title}
-      onClose={() => {
-        onClose()
-        afterClose.current?.()
-      }}
+      onClose={onClose}
       // Escape would close it on the spot; send it through the same exit as the close button.
       onCancel={(e) => {
         e.preventDefault()
@@ -357,14 +503,14 @@ export function Sheet({ id, startEditing = false, onClose }: { id: string; start
             <small> km</small>
           </span>
         )}
-        <button className="btn close" onClick={() => close()} aria-label="Close">
+        <button className="btn close" onClick={close} aria-label="Close">
           <X size={16} strokeWidth={1.75} aria-hidden="true" />
         </button>
       </header>
+      {/* The plan, as text to read. Only the result below it has fields to fill in. */}
       <Steps w={w} />
-      {w.kind !== 'strength' && !w.done && <Heat w={w} />}
-      {/* key resets the form when the workout's done state flips */}
-      <Result key={String(!!w.done)} w={w} fresh={logged} onLogged={() => setLogged(true)} onClose={close} />
+      {w.kind !== 'strength' && <Conditions w={w} />}
+      <Result w={w} />
       <Edit w={w} startOpen={startEditing} onClose={onClose} />
     </dialog>
   )

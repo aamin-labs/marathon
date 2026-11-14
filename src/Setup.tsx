@@ -144,7 +144,7 @@ export function Setup() {
         </label>
         <SendButton withRemove />
         <p className="muted">
-          Send again after moving a workout or setting the heat, so the watch gets the change. “Fetch completed runs” logs the runs intervals.icu has recorded on the days
+          Send again after moving a workout, or when a new forecast changes its paces, so the watch gets the change. “Fetch completed runs” logs the runs intervals.icu has recorded on the days
           you planned them; runs that reach intervals.icu through Strava can’t be read. “Remove sent runs” takes this app’s runs back out of intervals.icu; your plan here is
           untouched.
         </p>

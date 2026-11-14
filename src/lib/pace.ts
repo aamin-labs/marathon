@@ -10,6 +10,14 @@ export function parseClock(s: string): number | null {
   return parts.reduce((acc, n) => acc * 60 + n, 0)
 }
 
+/** The time typed for a run that is done → seconds. An empty field is 0, meaning no time was recorded. */
+export function parseRunTime(text: string): number | null {
+  if (!text.trim()) return 0
+  // A time with no colon is a slip, not seconds: "5230" would otherwise be read as 1:27:10.
+  if (!/^\d+:[0-5]\d(:[0-5]\d)?$/.test(text.trim())) return null
+  return parseClock(text)
+}
+
 export function fmtClock(sec: number): string {
   const t = Math.round(sec)
   const h = Math.floor(t / 3600)

@@ -25,7 +25,8 @@ export interface Workout extends Item {
   id: string
   date: string
   done?: { km: number; sec: number; shoeId?: string; note?: string; laps?: Lap[] }
-  heat?: { tempC: number; dewC: number }
+  /** The conditions the paces are slowed for. `auto` marks a fetched forecast, which is refreshed; without it they were entered by hand and are kept. */
+  heat?: { tempC: number; dewC: number; auto?: boolean }
 }
 
 export interface Shoe {
